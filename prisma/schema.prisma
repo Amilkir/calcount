@@ -1,0 +1,301 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum Sex {
+  MALE
+  FEMALE
+}
+
+enum BodyType {
+  ECTOMORPH
+  MESOMORPH
+  ENDOMORPH
+}
+
+enum ActivityLevel {
+  SEDENTARY
+  LIGHT
+  MODERATE
+  ACTIVE
+  VERY_ACTIVE
+}
+
+enum Goal {
+  MAINTENANCE
+  DEFICIT
+  SURPLUS
+}
+
+enum BmrFormula {
+  AUTO
+  MIFFLIN
+  HARRIS_BENEDICT
+  KATCH_MCARDLE
+}
+
+enum ActivityMode {
+  SIMPLE
+  DETAILED
+}
+
+enum JobActivity {
+  SEDENTARY
+  LIGHT
+  MODERATE
+  HEAVY
+}
+
+enum WorkoutType {
+  WALKING
+  RUNNING
+  CYCLING
+  STRENGTH
+  HIIT
+  SWIMMING
+  SPORTS
+  OTHER
+}
+
+enum PhysiologicalState {
+  NONE
+  PREGNANT_T1
+  PREGNANT_T2
+  PREGNANT_T3
+  LACTATING
+}
+
+enum ThyroidCondition {
+  NONE
+  HYPOTHYROID
+  HYPERTHYROID
+}
+
+enum MacroPreset {
+  BALANCED
+  HIGH_PROTEIN
+  LOW_CARB
+  CUSTOM
+}
+
+enum Climate {
+  TEMPERATE
+  HOT
+  COLD
+}
+
+enum StressLevel {
+  LOW
+  MODERATE
+  HIGH
+}
+
+enum ServingUnit {
+  GRAMS_100
+  UNIT
+}
+
+enum MealSlot {
+  BREAKFAST
+  LUNCH
+  DINNER
+  SNACK
+  EXTRA
+}
+
+enum FoodType {
+  CARBOHIDRATOS
+  GRASAS
+  PROTEINAS
+}
+
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  profile       Profile?
+  foods         Food[]
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+}
+
+model Profile {
+  id            String        @id @default(cuid())
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        String        @unique
+  name          String
+  sex           Sex
+  age           Int
+  heightCm      Float
+  weightKg      Float
+  bodyType      BodyType
+  activityLevel ActivityLevel
+  goal          Goal
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  entries       FoodEntry[]
+  weightLogs    WeightLog[]
+  changes       ProfileChange[]
+
+  // Composición corporal (opcional)
+  bodyFatPct Float?
+  neckCm     Float?
+  waistCm    Float?
+  hipCm      Float?
+
+  // Fórmula de metabolismo basal
+  bmrFormula            BmrFormula @default(AUTO)
+  useBodyTypeAdjustment Boolean    @default(true)
+
+  // Objetivo
+  adjustmentPct  Float?
+  weeklyRateKg   Float?
+  targetWeightKg Float?
+
+  // Actividad
+  activityMode    ActivityMode @default(SIMPLE)
+  jobActivity     JobActivity  @default(SEDENTARY)
+  dailySteps      Int?
+  workoutsPerWeek Int?
+  workoutMinutes  Int?
+  workoutType     WorkoutType  @default(STRENGTH)
+
+  // Condiciones fisiológicas
+  physiologicalState PhysiologicalState @default(NONE)
+  thyroidCondition   ThyroidCondition   @default(NONE)
+
+  // Macronutrientes
+  macroPreset  MacroPreset @default(BALANCED)
+  proteinPerKg Float?
+
+  // Estilo de vida
+  sleepHours  Float?
+  stressLevel StressLevel?
+  climate     Climate      @default(TEMPERATE)
+
+  // Ajuste dinámico según el peso real
+  adaptiveTdee Boolean @default(false)
+}
+
+// Historial de cambios del perfil: qué cambió, por qué y cómo movió las calorías.
+model ProfileChange {
+  id                 String   @id @default(cuid())
+  profile            Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId          String
+  // CREATED | EDIT | WEIGHT
+  source             String
+  note               String?
+  // JSON: [{ field, label, from, to }]
+  changes            String
+  goalBefore         Int?
+  goalAfter          Int
+  maintenanceBefore  Int?
+  maintenanceAfter   Int
+  createdAt          DateTime @default(now())
+
+  @@index([profileId, createdAt])
+}
+
+model WeightLog {
+  id        String   @id @default(cuid())
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId String
+  date      String
+  weightKg  Float
+  createdAt DateTime @default(now())
+
+  @@unique([profileId, date])
+  @@index([profileId, date])
+}
+
+model Food {
+  id          String      @id @default(cuid())
+  // userId nulo = alimento del catálogo global; con valor = alimento propio del usuario
+  user        User?       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String?
+  name        String
+  category    String
+  icon        String
+  servingUnit ServingUnit
+  foodType    FoodType    @default(CARBOHIDRATOS)
+  calories    Float
+  protein     Float?
+  carbs       Float?
+  fat         Float?
+  createdAt   DateTime    @default(now())
+  entries     FoodEntry[]
+
+  @@unique([userId, name])
+}
+
+model FoodEntry {
+  id              String   @id @default(cuid())
+  profile         Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId       String
+  food            Food?    @relation(fields: [foodId], references: [id], onDelete: Cascade)
+  foodId          String?
+  mealSlot        MealSlot
+  quantity        Float?
+  freeDescription String?
+  calories        Float
+  date            String
+  createdAt       DateTime @default(now())
+
+  @@index([profileId, date])
+}

@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "calcount",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": { "enabled": true },
+  "vars": {
+    "EMAIL_FROM": "Calcount <onboarding@resend.dev>"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "calcount-db",
+      "database_id": "e0107cc0-bf2e-4050-ac87-a48fb2df4773",
+      "migrations_dir": "migrations"
+    }
+  ]
+}

@@ -1,36 +1,45 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Calcount
 
-## Getting Started
+App local para llevar el registro diario de calorías: perfiles con sexo, edad,
+altura, peso y tipo de cuerpo; una base de datos de alimentos editable; y un
+contador de calorías restantes por día repartido en 5 ingestas (desayuno,
+almuerzo, cena, merienda, adicional).
 
-First, run the development server:
+## Cómo correr el proyecto
 
 ```bash
+npm install
+npx prisma migrate deploy   # crea/actualiza dev.db con el esquema
+npm run db:seed             # carga los 25 alimentos base (idempotente)
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abre [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+> Usa siempre `npm run dev` para uso normal (no `npm run build && npm run start`
+> salvo que sepas lo que haces): es una app local, pensada para correr en modo
+> desarrollo.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Cálculo de calorías
 
-## Learn More
+- BMR con la fórmula de Mifflin-St Jeor.
+- TDEE = BMR × multiplicador de nivel de actividad.
+- Ajuste por tipo de cuerpo: ectomorfo ×1.05, mesomorfo ×1.0, endomorfo ×0.95.
+- Meta de déficit = mantenimiento × 0.8 (20% de déficit).
 
-To learn more about Next.js, take a look at the following resources:
+Ver [src/lib/calories.ts](src/lib/calories.ts).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Base de datos
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+SQLite local (`dev.db`, ignorado por git) vía Prisma con el adaptador
+`@prisma/adapter-libsql`. Esquema en [prisma/schema.prisma](prisma/schema.prisma).
 
-## Deploy on Vercel
+- `Profile`: datos del usuario + meta (mantenimiento/déficit).
+- `Food`: alimentos con calorías por 100 g o por unidad (ej. huevo).
+- `FoodEntry`: cada registro de consumo, con las calorías ya calculadas al
+  momento de guardarse (para no alterar el historial si luego cambias el
+  valor calórico de un alimento).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Para agregar/editar alimentos base, edita [prisma/seed.ts](prisma/seed.ts) y
+vuelve a correr `npm run db:seed` (usa `upsert`, no duplica). También puedes
+agregar alimentos nuevos directamente desde la app en `/foods`.

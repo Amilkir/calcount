@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node check.js)",
+      "Bash(taskkill //PID 38188 //F)",
+      "Bash(taskkill //PID 14112 //F)",
+      "Bash(node scripts/validate_palette.js \"#2a78d6,#eb6834,#1baf7a\" --mode light --pairs all)",
+      "Bash(node scripts/validate_palette.js \"#3987e5,#d95926,#199e70\" --mode dark --surface \"#1a1a19\" --pairs all)"
+    ]
+  }
+}
