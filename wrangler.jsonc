@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "calcount",
+  "account_id": "e7cf87e73157ccc0d91bc3af246b06ac",
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
@@ -9,14 +10,18 @@
     "binding": "ASSETS"
   },
   "observability": { "enabled": true },
+  "routes": [
+    { "pattern": "calcount.ck-vs.com", "custom_domain": true }
+  ],
   "vars": {
-    "EMAIL_FROM": "Calcount <onboarding@resend.dev>"
+    "EMAIL_FROM": "Calcount <no-reply@ck-vs.com>",
+    "BETTER_AUTH_URL": "https://calcount.ck-vs.com"
   },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "calcount-db",
-      "database_id": "e0107cc0-bf2e-4050-ac87-a48fb2df4773",
+      "database_id": "7d5d6697-ddf3-473d-88f8-b768e49e344a",
       "migrations_dir": "migrations"
     }
   ]
