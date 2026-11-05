@@ -46,21 +46,33 @@ export default async function RootLayout({
                 Calcount
               </span>
             </Link>
-            {session && (
+            {session ? (
               <div className="flex items-center gap-1 sm:gap-3">
                 <nav className="flex items-center gap-0.5 text-sm sm:gap-1">
                   <Link href="/" className={NAV_LINK}>
                     Hoy
                   </Link>
-                  <Link href="/profile" className={NAV_LINK}>
-                    Perfil
-                  </Link>
                   <Link href="/foods" className={NAV_LINK}>
                     Alimentos
                   </Link>
+                  <Link href="/faq" className={NAV_LINK} title="Preguntas frecuentes">
+                    FAQ
+                  </Link>
                 </nav>
-                <UserMenu email={session.user.email} />
+                <UserMenu name={session.user.name} email={session.user.email} />
               </div>
+            ) : (
+              <nav className="flex items-center gap-1 text-sm sm:gap-2">
+                <Link href="/faq" className={`${NAV_LINK} hidden sm:inline-flex`}>
+                  Preguntas frecuentes
+                </Link>
+                <Link href="/login" className={NAV_LINK}>
+                  Iniciar sesión
+                </Link>
+                <Link href="/signup" className="btn-primary px-4 py-1.5">
+                  Registrarse
+                </Link>
+              </nav>
             )}
           </div>
         </header>

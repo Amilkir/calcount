@@ -28,7 +28,12 @@ async function sendEmail(
     </div>`,
   });
   // No se relanza: un fallo de envío no debe revelar si el correo existe.
-  if (error) console.error("Resend:", error);
+  // Se registran los campos por separado: el objeto de error se serializa como "{}".
+  if (error) {
+    console.error(
+      `Resend: no se pudo enviar "${subject}" (${error.name}): ${error.message}`
+    );
+  }
 }
 
 function createAuth(env: CloudflareEnv) {

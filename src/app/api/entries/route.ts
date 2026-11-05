@@ -46,6 +46,44 @@ export async function POST(request: NextRequest) {
   const auth = await authorizeProfile(profileId);
   if (!auth.ok) return auth.response;
 
+  // Varios alimentos de una vez (autocompletado): foods = [{ foodId, quantity }].
+  if (body.foods !== undefined) {
+    const raw: unknown = body.foods;
+    if (!Array.isArray(raw) || raw.length === 0 || raw.length > 20) {
+      return NextResponse.json({ error: "Lista de alimentos inválida." }, { status: 400 });
+    }
+    const items: { foodId: string; quantity: number }[] = [];
+    for (const entry of raw) {
+      const { foodId, quantity } = (entry ?? {}) as Record<string, unknown>;
+      if (!isNonEmptyString(foodId) || !isFiniteNumber(quantity) || quantity <= 0) {
+        return NextResponse.json({ error: "Lista de alimentos inválida." }, { status: 400 });
+      }
+      items.push({ foodId, quantity });
+    }
+    const foods = await prisma.food.findMany({
+      where: {
+        id: { in: [...new Set(items.map((i) => i.foodId))] },
+        OR: [{ userId: null }, { userId: auth.user.id }],
+      },
+    });
+    const byId = new Map(foods.map((f) => [f.id, f]));
+    if (items.some((i) => !byId.has(i.foodId))) {
+      return NextResponse.json({ error: "Alimento no encontrado." }, { status: 404 });
+    }
+
+    const { count } = await prisma.foodEntry.createMany({
+      data: items.map(({ foodId, quantity }) => ({
+        profileId,
+        foodId,
+        mealSlot,
+        quantity,
+        date,
+        calories: entryCalories(byId.get(foodId)!, quantity),
+      })),
+    });
+    return NextResponse.json({ count }, { status: 201 });
+  }
+
   // Comida guardada: se crea un registro por cada alimento de la plantilla.
   const { mealTemplateId } = body ?? {};
   if (mealTemplateId !== undefined) {
