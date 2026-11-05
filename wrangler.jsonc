@@ -14,7 +14,7 @@
     { "pattern": "calcount.ck-vs.com", "custom_domain": true }
   ],
   "vars": {
-    "EMAIL_FROM": "Calcount <onboarding@resend.dev>",
+    "EMAIL_FROM": "Calcount <no-reply@ck-vs.com>",
     "BETTER_AUTH_URL": "https://calcount.ck-vs.com"
   },
   "d1_databases": [
