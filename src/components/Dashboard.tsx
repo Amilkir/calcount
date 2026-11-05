@@ -1,19 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Food, FoodEntryWithFood, Profile } from "@/lib/types";
+import type { MealTemplateWithItems } from "@/lib/meals";
 import type { MealSlot } from "@/generated/prisma/enums";
 import { MEAL_SLOT_LABELS, MEAL_SLOT_ORDER } from "@/lib/labels";
 import { addDays, formatDateDisplay, getWeekDates, toDateKey } from "@/lib/date";
 import CalorieSummary from "./CalorieSummary";
 import MacroPieChart from "./MacroPieChart";
-import MealSlotSection from "./MealSlotSection";
+import MealSlotSection, { type EntryUpdate } from "./MealSlotSection";
 import AddEntryModal, { type NewEntryPayload } from "./AddEntryModal";
 import WeekSummary from "./WeekSummary";
 import TargetsPanel from "./TargetsPanel";
 import WeightTracker from "./WeightTracker";
+import HydrationCard from "./HydrationCard";
+import SupplementsCard from "./SupplementsCard";
 import type { CalorieTargets } from "@/lib/calories";
+import { dayHabitStatus, dayPlan, type DailyLogData, type DayHabitStatus } from "@/lib/daily-log";
+import { decodeSupplements, type Supplement } from "@/lib/supplements";
 
 function CalorieSummarySkeleton() {
   return (
@@ -81,13 +86,28 @@ async function fetchWeekSummary(
   return Object.fromEntries(data.map((d) => [d.date, d.calories]));
 }
 
+async function fetchDailyLogs(
+  profileId: string,
+  startDate: string,
+  endDate: string
+): Promise<Record<string, DailyLogData>> {
+  const res = await fetch(
+    `/api/profiles/${profileId}/daily-logs?startDate=${startDate}&endDate=${endDate}`
+  );
+  if (!res.ok) return {};
+  const data: DailyLogData[] = await res.json();
+  return Object.fromEntries(data.map((d) => [d.date, d]));
+}
+
 export default function Dashboard({
   profile,
   foods,
+  meals,
   targets,
 }: {
   profile: Profile;
   foods: Food[];
+  meals: MealTemplateWithItems[];
   targets: CalorieTargets;
 }) {
   const goalCalories = targets.goalCalories;
@@ -95,8 +115,73 @@ export default function Dashboard({
   const [entries, setEntries] = useState<FoodEntryWithFood[] | null>(null);
   const [activeSlot, setActiveSlot] = useState<MealSlot | null>(null);
   const [weekTotals, setWeekTotals] = useState<Record<string, number>>({});
+  const [dailyLogs, setDailyLogs] = useState<Record<string, DailyLogData>>({});
+  // Último guardado por día: las respuestas de guardados anteriores se ignoran.
+  const saveSeq = useRef<Record<string, number>>({});
 
   const weekDates = getWeekDates(dateKey);
+  const todayKey = toDateKey(new Date());
+  const currentHabits = {
+    supplements: decodeSupplements(profile.supplements),
+    waterGoalMl: targets.waterMl,
+    todayKey,
+  };
+  const habitStatus: Record<string, DayHabitStatus> = Object.fromEntries(
+    weekDates.map((d) => [d, dayHabitStatus(d, dailyLogs[d], currentHabits)])
+  );
+  const dayLog = dailyLogs[dateKey];
+  const plan = dayPlan(dateKey, dayLog, currentHabits);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchDailyLogs(profile.id, weekDates[0], weekDates[6]).then((data) => {
+      if (!cancelled) setDailyLogs(data);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile.id, weekDates[0]]);
+
+  /** Actualiza el día al instante y lo guarda en segundo plano. */
+  async function saveDailyLog(date: string, change: { waterMl?: number; supplementsTaken?: Supplement[] }) {
+    setDailyLogs((prev) => {
+      const base: DailyLogData = prev[date] ?? {
+        date,
+        waterMl: 0,
+        waterGoalMl: plan.waterGoalMl,
+        supplementsPlanned: plan.supplements,
+        supplementsTaken: [],
+      };
+      return { ...prev, [date]: { ...base, ...change } };
+    });
+
+    const seq = (saveSeq.current[date] ?? 0) + 1;
+    saveSeq.current[date] = seq;
+    const res = await fetch(`/api/profiles/${profile.id}/daily-logs`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ date, ...change }),
+    }).catch(() => null);
+    if (saveSeq.current[date] !== seq) return;
+
+    if (res?.ok) {
+      const saved: DailyLogData = await res.json();
+      if (saveSeq.current[date] === seq) setDailyLogs((prev) => ({ ...prev, [date]: saved }));
+    } else {
+      // Si falló, se vuelve a lo que hay guardado.
+      const fresh = await fetchDailyLogs(profile.id, weekDates[0], weekDates[6]);
+      setDailyLogs(fresh);
+    }
+  }
+
+  function toggleSupplement(supplement: Supplement, checked: boolean) {
+    const current = dayLog?.supplementsTaken ?? [];
+    const next = checked
+      ? [...new Set([...current, supplement])]
+      : current.filter((s) => s !== supplement);
+    saveDailyLog(dateKey, { supplementsTaken: next });
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -130,22 +215,13 @@ export default function Dashboard({
 
   async function handleAddEntry(payload: NewEntryPayload) {
     if (!activeSlot) return;
+    const base = { profileId: profile.id, mealSlot: activeSlot, date: dateKey };
     const body =
       payload.kind === "food"
-        ? {
-            profileId: profile.id,
-            foodId: payload.foodId,
-            quantity: payload.quantity,
-            mealSlot: activeSlot,
-            date: dateKey,
-          }
-        : {
-            profileId: profile.id,
-            freeDescription: payload.description,
-            calories: payload.calories,
-            mealSlot: activeSlot,
-            date: dateKey,
-          };
+        ? { ...base, foodId: payload.foodId, quantity: payload.quantity }
+        : payload.kind === "meal"
+          ? { ...base, mealTemplateId: payload.mealTemplateId, items: payload.items }
+          : { ...base, freeDescription: payload.description, calories: payload.calories };
 
     const res = await fetch("/api/entries", {
       method: "POST",
@@ -156,6 +232,17 @@ export default function Dashboard({
       setActiveSlot(null);
       await refresh();
     }
+  }
+
+  async function handleUpdateEntry(id: string, change: EntryUpdate): Promise<boolean> {
+    const res = await fetch(`/api/entries/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(change),
+    }).catch(() => null);
+    if (!res?.ok) return false;
+    await refresh();
+    return true;
   }
 
   async function handleDeleteEntry(id: string) {
@@ -181,6 +268,8 @@ export default function Dashboard({
       <WeekSummary
         weekDates={weekDates}
         dailyTotals={weekTotals}
+        habitStatus={habitStatus}
+        todayKey={todayKey}
         goalCalories={goalCalories}
         selectedDate={dateKey}
         onSelectDate={setDateKey}
@@ -198,6 +287,21 @@ export default function Dashboard({
 
       {!loading && <TargetsPanel targets={targets} entries={entries ?? []} />}
 
+      <div className={`grid gap-4 ${plan.supplements.length > 0 ? "sm:grid-cols-2" : ""}`}>
+        <HydrationCard
+          waterMl={dayLog?.waterMl ?? 0}
+          goalMl={plan.waterGoalMl}
+          onChange={(waterMl) => saveDailyLog(dateKey, { waterMl })}
+        />
+        {plan.supplements.length > 0 && (
+          <SupplementsCard
+            supplements={plan.supplements}
+            taken={dayLog?.supplementsTaken ?? []}
+            onToggle={toggleSupplement}
+          />
+        )}
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2">
         {loading
           ? MEAL_SLOT_ORDER.map((slot) => (
@@ -210,6 +314,7 @@ export default function Dashboard({
                 entries={(entries ?? []).filter((e) => e.mealSlot === slot)}
                 onAdd={() => setActiveSlot(slot)}
                 onDelete={handleDeleteEntry}
+                onUpdate={handleUpdateEntry}
               />
             ))}
       </div>
@@ -219,6 +324,7 @@ export default function Dashboard({
       {activeSlot && (
         <AddEntryModal
           foods={foods}
+          meals={meals}
           mealLabel={MEAL_SLOT_LABELS[activeSlot]}
           onClose={() => setActiveSlot(null)}
           onSubmit={handleAddEntry}

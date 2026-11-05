@@ -16,6 +16,7 @@ import {
   THYROID_LABELS,
   WORKOUT_TYPE_LABELS,
 } from "./labels";
+import { decodeSupplements, formatSupplements } from "./supplements";
 
 export type ChangeSource = "CREATED" | "EDIT" | "WEIGHT";
 
@@ -68,6 +69,10 @@ const FIELDS: Record<string, { label: string; format: (v: unknown) => string }> 
   stressLevel: { label: "Nivel de estrés", format: lookup(STRESS_LABELS) },
   climate: { label: "Clima", format: lookup(CLIMATE_LABELS) },
   adaptiveTdee: { label: "Ajuste dinámico", format: bool },
+  supplements: {
+    label: "Suplementos",
+    format: (v) => formatSupplements(decodeSupplements(v as string)),
+  },
 };
 
 export function diffProfiles(before: Profile, after: Profile): ChangeItem[] {

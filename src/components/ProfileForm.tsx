@@ -36,6 +36,7 @@ import {
   WORKOUT_TYPE_LABELS,
 } from "@/lib/labels";
 import { calculateCalorieTargets, targetForGoal } from "@/lib/calories";
+import { SUPPLEMENTS, SUPPLEMENT_LABELS, type Supplement } from "@/lib/supplements";
 import {
   DEFAULT_PROFILE_VALUES,
   type ProfileFormValues,
@@ -196,6 +197,22 @@ export default function ProfileForm({
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const [saved, setSaved] = useState(false);
+  const [takesSupplements, setTakesSupplements] = useState(
+    () => (initialValues?.supplements.length ?? 0) > 0
+  );
+  // Filas del formulario; "" es una fila nueva sin suplemento elegido todavía.
+  const [supplementRows, setSupplementRowsState] = useState<(Supplement | "")[]>(
+    () => initialValues?.supplements ?? []
+  );
+  const pendingSupplement = supplementRows.includes("");
+
+  function setSupplementRows(rows: (Supplement | "")[]) {
+    setSupplementRowsState(rows);
+    update(
+      "supplements",
+      rows.filter((s): s is Supplement => s !== "")
+    );
+  }
 
   const targets = useMemo(() => calculateCalorieTargets(values), [values]);
   const isEdit = mode === "edit";
@@ -223,6 +240,10 @@ export default function ProfileForm({
 
     if (!values.name.trim()) {
       setError("Ingresa un nombre para el perfil.");
+      return;
+    }
+    if (pendingSupplement) {
+      setError("Elige un suplemento en cada fila o quita las que estén vacías.");
       return;
     }
 
@@ -586,6 +607,75 @@ export default function ProfileForm({
         </Field>
       </Section>
 
+      <Section
+        title="Suplementos"
+        description="Los suplementos que agregues aparecerán cada día en el panel para marcar si los tomaste."
+      >
+        <CheckboxField
+          label="Tomo suplementos de forma recurrente"
+          checked={takesSupplements}
+          onChange={(checked) => {
+            setTakesSupplements(checked);
+            setSupplementRows(checked ? [""] : []);
+          }}
+        />
+        {takesSupplements && (
+          <div className="flex flex-col gap-2 sm:col-span-2">
+            {supplementRows.map((supplement, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <select
+                  value={supplement}
+                  aria-label={`Suplemento ${index + 1}`}
+                  onChange={(e) => {
+                    const next = [...supplementRows];
+                    next[index] = e.target.value as Supplement;
+                    setSupplementRows(next);
+                  }}
+                  className={`${INPUT_CLASS} flex-1 ${supplement === "" ? "text-neutral-500" : ""}`}
+                  required
+                >
+                  <option value="" disabled>
+                    Seleccione…
+                  </option>
+                  {SUPPLEMENTS.filter(
+                    (s) => s === supplement || !supplementRows.includes(s)
+                  ).map((s) => (
+                    <option key={s} value={s}>
+                      {SUPPLEMENT_LABELS[s]}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setSupplementRows(supplementRows.filter((_, i) => i !== index))}
+                  aria-label={`Quitar suplemento ${index + 1}`}
+                  className="flex min-h-11 min-w-11 items-center justify-center rounded-full text-neutral-500 hover:bg-red-50 hover:text-red-600"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+            {pendingSupplement && (
+              <p className="text-xs text-amber-700">
+                Elige un suplemento en cada fila (o quítala) para poder guardar.
+              </p>
+            )}
+            {supplementRows.length < SUPPLEMENTS.length ? (
+              <button
+                type="button"
+                onClick={() => setSupplementRows([...supplementRows, ""])}
+                disabled={pendingSupplement}
+                className="btn-secondary self-start"
+              >
+                + Añadir suplemento
+              </button>
+            ) : (
+              <p className="text-xs text-neutral-500">Ya agregaste todos los suplementos disponibles.</p>
+            )}
+          </div>
+        )}
+      </Section>
+
       <Section title="Ajuste dinámico">
         <CheckboxField
           label="Ajustar mi gasto según mi peso real"
@@ -664,7 +754,7 @@ export default function ProfileForm({
 
       <button
         type="submit"
-        disabled={submitting || !dirty}
+        disabled={submitting || !dirty || pendingSupplement}
         className="btn-primary self-start"
       >
         {submitting

@@ -14,6 +14,7 @@ import {
   WorkoutType,
 } from "@/generated/prisma/enums";
 import { isEnumValue, isFiniteNumber, isNonEmptyString } from "./validate";
+import { parseSupplementList } from "./supplements";
 
 type Rule =
   | { kind: "enum"; values: Record<string, string>; label: string; nullable?: boolean }
@@ -95,6 +96,14 @@ export function parseProfileInput(
       return { ok: false, error: "Nombre inválido." };
     }
     data.name = input.name.trim();
+  }
+
+  if (input.supplements !== undefined) {
+    const supplements = parseSupplementList(input.supplements);
+    if (!supplements) {
+      return { ok: false, error: "Suplementos inválidos." };
+    }
+    data.supplements = JSON.stringify(supplements);
   }
 
   for (const [field, rule] of Object.entries(RULES)) {

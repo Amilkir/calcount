@@ -14,6 +14,7 @@ import type {
   ThyroidCondition,
   WorkoutType,
 } from "@/generated/prisma/enums";
+import { decodeSupplements, type Supplement } from "./supplements";
 
 export interface ProfileFormValues {
   name: string;
@@ -55,6 +56,8 @@ export interface ProfileFormValues {
   climate: Climate;
 
   adaptiveTdee: boolean;
+
+  supplements: Supplement[];
 }
 
 export const DEFAULT_PROFILE_VALUES: ProfileFormValues = {
@@ -97,6 +100,8 @@ export const DEFAULT_PROFILE_VALUES: ProfileFormValues = {
   climate: "TEMPERATE",
 
   adaptiveTdee: false,
+
+  supplements: [],
 };
 
 export function profileToFormValues(profile: Profile): ProfileFormValues {
@@ -104,5 +109,7 @@ export function profileToFormValues(profile: Profile): ProfileFormValues {
   for (const key of Object.keys(values) as (keyof ProfileFormValues)[]) {
     (values as Record<string, unknown>)[key] = profile[key as keyof Profile];
   }
+  // En la base se guarda como JSON.
+  values.supplements = decodeSupplements(profile.supplements);
   return values;
 }

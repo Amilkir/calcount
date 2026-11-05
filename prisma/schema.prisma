@@ -129,6 +129,7 @@ model User {
   accounts      Account[]
   profile       Profile?
   foods         Food[]
+  mealTemplates MealTemplate[]
 }
 
 model Session {
@@ -231,6 +232,11 @@ model Profile {
 
   // Ajuste dinámico según el peso real
   adaptiveTdee Boolean @default(false)
+
+  // Suplementos que toma a diario. JSON: ["CREATINE", "OMEGA_3", ...] (ver lib/supplements.ts)
+  supplements String @default("[]")
+
+  dailyLogs DailyLog[]
 }
 
 // Historial de cambios del perfil: qué cambió, por qué y cómo movió las calorías.
@@ -264,6 +270,24 @@ model WeightLog {
   @@index([profileId, date])
 }
 
+// Seguimiento diario de hidratación y suplementos (una fila por perfil y día).
+model DailyLog {
+  id                 String   @id @default(cuid())
+  profile            Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId          String
+  date               String
+  waterMl            Int      @default(0)
+  // Meta de agua vigente al registrar el día, para que el historial no cambie si cambia el perfil.
+  waterGoalMl        Int
+  // JSON: suplementos del perfil al registrar el día y los que se marcaron como tomados.
+  supplementsPlanned String   @default("[]")
+  supplementsTaken   String   @default("[]")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([profileId, date])
+}
+
 model Food {
   id          String      @id @default(cuid())
   // userId nulo = alimento del catálogo global; con valor = alimento propio del usuario
@@ -280,8 +304,36 @@ model Food {
   fat         Float?
   createdAt   DateTime    @default(now())
   entries     FoodEntry[]
+  mealItems   MealTemplateItem[]
 
   @@unique([userId, name])
+}
+
+// Comida guardada (plantilla) para cargar varios alimentos de una vez. Ej.: "Desayuno típico".
+model MealTemplate {
+  id        String             @id @default(cuid())
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  name      String
+  icon      String
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  items     MealTemplateItem[]
+
+  @@unique([userId, name])
+}
+
+model MealTemplateItem {
+  id         String       @id @default(cuid())
+  template   MealTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  templateId String
+  food       Food         @relation(fields: [foodId], references: [id], onDelete: Cascade)
+  foodId     String
+  // Gramos o unidades, según la porción del alimento.
+  quantity   Float
+  position   Int
+
+  @@index([templateId])
 }
 
 model FoodEntry {

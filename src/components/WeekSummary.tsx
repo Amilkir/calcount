@@ -1,3 +1,5 @@
+import type { DayHabitStatus } from "@/lib/daily-log";
+
 function dayLabel(dateKey: string): { weekday: string; day: number } {
   const [year, month, day] = dateKey.split("-").map(Number);
   const date = new Date(year, month - 1, day);
@@ -5,9 +7,23 @@ function dayLabel(dateKey: string): { weekday: string; day: number } {
   return { weekday, day };
 }
 
+function HabitIcon({ icon, done, label }: { icon: string; done: boolean; label: string }) {
+  return (
+    <span
+      title={`${label}: ${done ? "sí" : "no"}`}
+      aria-label={`${label}: ${done ? "sí" : "no"}`}
+      className={`text-[11px] leading-none ${done ? "" : "opacity-35 grayscale"}`}
+    >
+      {icon}
+    </span>
+  );
+}
+
 export default function WeekSummary({
   weekDates,
   dailyTotals,
+  habitStatus,
+  todayKey,
   goalCalories,
   selectedDate,
   onSelectDate,
@@ -16,12 +32,20 @@ export default function WeekSummary({
 }: {
   weekDates: string[];
   dailyTotals: Record<string, number>;
+  habitStatus: Record<string, DayHabitStatus>;
+  todayKey: string;
   goalCalories: number;
   selectedDate: string;
   onSelectDate: (date: string) => void;
   onPrevWeek: () => void;
   onNextWeek: () => void;
 }) {
+  const trackedDays = weekDates
+    .filter((d) => d <= todayKey && habitStatus[d])
+    .map((d) => habitStatus[d]);
+  const waterDays = trackedDays.filter((h) => h.waterReached).length;
+  const supplementDays = trackedDays.filter((h) => h.supplementsDone !== null);
+
   return (
     <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
       <div className="flex items-center justify-between">
@@ -53,6 +77,8 @@ export default function WeekSummary({
           const hasEntries = calories !== undefined && calories > 0;
           const over = hasEntries && calories > goalCalories;
           const isSelected = dateKey === selectedDate;
+          // Los días futuros todavía no tienen nada que cumplir.
+          const habits = dateKey <= todayKey ? habitStatus[dateKey] : undefined;
 
           return (
             <button
@@ -92,10 +118,35 @@ export default function WeekSummary({
               >
                 {hasEntries ? Math.round(calories) : "–"}
               </span>
+              {habits && (
+                <span className="flex items-center gap-0.5">
+                  <HabitIcon icon="💧" done={habits.waterReached} label="Meta de agua" />
+                  {habits.supplementsDone !== null && (
+                    <HabitIcon icon="💊" done={habits.supplementsDone} label="Suplementos" />
+                  )}
+                </span>
+              )}
             </button>
           );
         })}
       </div>
+
+      {trackedDays.length > 0 && (
+        <p className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-neutral-500">
+          <span>
+            💧 Agua: <span className="font-semibold text-neutral-700">{waterDays}/{trackedDays.length}</span> días
+          </span>
+          {supplementDays.length > 0 && (
+            <span>
+              💊 Todos los suplementos:{" "}
+              <span className="font-semibold text-neutral-700">
+                {supplementDays.filter((h) => h.supplementsDone).length}/{supplementDays.length}
+              </span>{" "}
+              días
+            </span>
+          )}
+        </p>
+      )}
     </div>
   );
 }

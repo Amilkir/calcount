@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { MealSlot } from "@/generated/prisma/enums";
 import { isEnumValue, isFiniteNumber, isNonEmptyString } from "@/lib/validate";
 import { authorizeProfile } from "@/lib/session";
+import { MEAL_TEMPLATE_INCLUDE, entryCalories } from "@/lib/meals";
 
 export async function GET(request: NextRequest) {
   const profileId = request.nextUrl.searchParams.get("profileId");
@@ -45,6 +46,58 @@ export async function POST(request: NextRequest) {
   const auth = await authorizeProfile(profileId);
   if (!auth.ok) return auth.response;
 
+  // Comida guardada: se crea un registro por cada alimento de la plantilla.
+  const { mealTemplateId } = body ?? {};
+  if (mealTemplateId !== undefined) {
+    if (!isNonEmptyString(mealTemplateId)) {
+      return NextResponse.json({ error: "Comida inválida." }, { status: 400 });
+    }
+    const template = await prisma.mealTemplate.findFirst({
+      where: { id: mealTemplateId, userId: auth.user.id },
+      include: MEAL_TEMPLATE_INCLUDE,
+    });
+    if (!template || template.items.length === 0) {
+      return NextResponse.json({ error: "Comida no encontrada." }, { status: 404 });
+    }
+
+    // Opcional: cantidades ajustadas para este registro, [{ itemId, quantity }].
+    // Los alimentos de la plantilla que no vengan en la lista no se cargan.
+    let selection = template.items.map((item) => ({ item, quantity: item.quantity }));
+    if (body.items !== undefined) {
+      const raw: unknown = body.items;
+      const byId = new Map(template.items.map((item) => [item.id, item]));
+      const seen = new Set<string>();
+      if (!Array.isArray(raw) || raw.length === 0) {
+        return NextResponse.json({ error: "Elige al menos un alimento." }, { status: 400 });
+      }
+      selection = [];
+      for (const entry of raw) {
+        const { itemId, quantity } = (entry ?? {}) as Record<string, unknown>;
+        const item = typeof itemId === "string" ? byId.get(itemId) : undefined;
+        if (!item || seen.has(item.id) || !isFiniteNumber(quantity) || quantity <= 0) {
+          return NextResponse.json(
+            { error: "Cantidades de la comida inválidas." },
+            { status: 400 }
+          );
+        }
+        seen.add(item.id);
+        selection.push({ item, quantity });
+      }
+    }
+
+    const { count } = await prisma.foodEntry.createMany({
+      data: selection.map(({ item, quantity }) => ({
+        profileId,
+        foodId: item.foodId,
+        mealSlot,
+        quantity,
+        date,
+        calories: entryCalories(item.food, quantity),
+      })),
+    });
+    return NextResponse.json({ count }, { status: 201 });
+  }
+
   if (isNonEmptyString(freeDescription)) {
     const { calories } = body ?? {};
     if (!isFiniteNumber(calories) || calories <= 0) {
@@ -84,10 +137,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Alimento no encontrado." }, { status: 404 });
   }
 
-  const calories =
-    food.servingUnit === "UNIT"
-      ? food.calories * quantity
-      : food.calories * (quantity / 100);
+  const calories = entryCalories(food, quantity);
 
   const entry = await prisma.foodEntry.create({
     data: {
