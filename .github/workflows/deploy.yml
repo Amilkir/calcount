@@ -1,0 +1,48 @@
+name: Deploy to Cloudflare
+
+# Each push to main deploys the app to https://calcount.ck-vs.com.
+# The account ID, the D1 database and the custom domain are in wrangler.jsonc.
+# App secrets (Better Auth, Google, Resend) are in the Cloudflare Worker, not here.
+# The only GitHub secret is CLOUDFLARE_API_TOKEN.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Do not let two deploys run at the same time. A new push cancels nothing:
+# it waits until the deploy in progress is complete.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The Prisma client is in .gitignore, so make it before the build.
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      # Apply new migrations before the deploy, so the new code finds the new schema.
+      # If a migration fails, the job stops and the old version stays live.
+      - name: Apply D1 migrations
+        run: npx wrangler d1 migrations apply calcount-db --remote
+
+      - name: Build and deploy the Worker
+        run: npm run deploy
