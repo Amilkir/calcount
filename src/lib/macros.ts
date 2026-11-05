@@ -42,6 +42,32 @@ export function entryMacros(entry: FoodEntryWithFood): MacroGrams & {
   };
 }
 
+/**
+ * Calorías y macros de una porción del alimento (100 g o 1 unidad). Si no tiene
+ * macros guardados se estiman por su tipo, igual que en el resumen del día.
+ */
+export function foodMacrosPerServing(
+  food: NonNullable<FoodEntryWithFood["food"]>
+): MacroGrams & { calories: number; estimated: boolean } {
+  if (hasMacros(food)) {
+    return {
+      calories: food.calories,
+      protein: food.protein ?? 0,
+      carbs: food.carbs ?? 0,
+      fat: food.fat ?? 0,
+      estimated: false,
+    };
+  }
+  const kcal = food.calories;
+  return {
+    calories: kcal,
+    protein: food.foodType === "PROTEINAS" ? kcal / 4 : 0,
+    carbs: food.foodType === "CARBOHIDRATOS" ? kcal / 4 : 0,
+    fat: food.foodType === "GRASAS" ? kcal / 9 : 0,
+    estimated: true,
+  };
+}
+
 export function sumDayMacros(entries: FoodEntryWithFood[]): DayMacros {
   const total: DayMacros = { protein: 0, carbs: 0, fat: 0, otherKcal: 0, estimated: false };
   for (const entry of entries) {

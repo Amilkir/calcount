@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { sumDayMacros } from "@/lib/macros";
 import type { Food, FoodEntryWithFood, Profile } from "@/lib/types";
 import type { MealTemplateWithItems } from "@/lib/meals";
 import type { MealSlot } from "@/generated/prisma/enums";
@@ -221,7 +222,9 @@ export default function Dashboard({
         ? { ...base, foodId: payload.foodId, quantity: payload.quantity }
         : payload.kind === "meal"
           ? { ...base, mealTemplateId: payload.mealTemplateId, items: payload.items }
-          : { ...base, freeDescription: payload.description, calories: payload.calories };
+          : payload.kind === "batch"
+            ? { ...base, foods: payload.foods }
+            : { ...base, freeDescription: payload.description, calories: payload.calories };
 
     const res = await fetch("/api/entries", {
       method: "POST",
@@ -252,6 +255,16 @@ export default function Dashboard({
 
   const loading = entries === null;
   const consumed = (entries ?? []).reduce((sum, e) => sum + e.calories, 0);
+  // Lo que falta del día, para el autocompletado (negativo = ya te pasaste).
+  const remaining = useMemo(() => {
+    const day = sumDayMacros(entries ?? []);
+    return {
+      calories: goalCalories - (entries ?? []).reduce((sum, e) => sum + e.calories, 0),
+      protein: targets.macros.proteinG - day.protein,
+      carbs: targets.macros.carbsG - day.carbs,
+      fat: targets.macros.fatG - day.fat,
+    };
+  }, [entries, goalCalories, targets.macros]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -325,6 +338,7 @@ export default function Dashboard({
         <AddEntryModal
           foods={foods}
           meals={meals}
+          remaining={remaining}
           mealLabel={MEAL_SLOT_LABELS[activeSlot]}
           onClose={() => setActiveSlot(null)}
           onSubmit={handleAddEntry}

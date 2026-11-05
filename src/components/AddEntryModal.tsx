@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import type { Remaining } from "@/lib/autofill";
+import AutofillPanel from "./AutofillPanel";
 import { useMemo, useState } from "react";
 import type { Food } from "@/lib/types";
 import { SERVING_UNIT_LABELS } from "@/lib/labels";
@@ -13,22 +15,25 @@ import {
 export type NewEntryPayload =
   | { kind: "food"; foodId: string; quantity: number }
   | { kind: "free"; description: string; calories: number }
-  | { kind: "meal"; mealTemplateId: string; items: { itemId: string; quantity: number }[] };
+  | { kind: "meal"; mealTemplateId: string; items: { itemId: string; quantity: number }[] }
+  | { kind: "batch"; foods: { foodId: string; quantity: number }[] };
 
 export default function AddEntryModal({
   foods,
   meals,
+  remaining,
   mealLabel,
   onClose,
   onSubmit,
 }: {
   foods: Food[];
   meals: MealTemplateWithItems[];
+  remaining: Remaining;
   mealLabel: string;
   onClose: () => void;
   onSubmit: (payload: NewEntryPayload) => Promise<void>;
 }) {
-  const [mode, setMode] = useState<"food" | "meal" | "free">("food");
+  const [mode, setMode] = useState<"food" | "meal" | "autofill" | "free">("food");
   const [selectedMealId, setSelectedMealId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [selectedFoodId, setSelectedFoodId] = useState<string | null>(null);
@@ -108,7 +113,7 @@ export default function AddEntryModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-xl bg-white p-6 shadow-lg"
+        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-6 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
@@ -144,16 +149,31 @@ export default function AddEntryModal({
           </button>
           <button
             type="button"
+            onClick={() => setMode("autofill")}
+            className={`flex-1 rounded-full py-1.5 ${
+              mode === "autofill" ? "bg-white shadow-sm text-brand-700" : "text-neutral-500"
+            }`}
+          >
+            Completar
+          </button>
+          <button
+            type="button"
             onClick={() => setMode("free")}
             className={`flex-1 rounded-full py-1.5 ${
               mode === "free" ? "bg-white shadow-sm text-brand-700" : "text-neutral-500"
             }`}
           >
-            Alimento libre
+            Libre
           </button>
         </div>
 
-        {mode === "meal" ? (
+        {mode === "autofill" ? (
+          <AutofillPanel
+            foods={foods}
+            remaining={remaining}
+            onSubmit={(items) => onSubmit({ kind: "batch", foods: items })}
+          />
+        ) : mode === "meal" ? (
           !selectedMeal ? (
             <div className="mt-4 max-h-80 overflow-y-auto rounded-lg border border-neutral-100">
               {meals.length === 0 && (
