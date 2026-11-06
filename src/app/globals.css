@@ -2,7 +2,7 @@
 
 @theme inline {
   --font-sans: var(--font-nunito);
-  --font-display: var(--font-fredoka);
+  --font-display: var(--font-fraunces);
 }
 
 @theme {
@@ -23,14 +23,32 @@
   --color-lagoon-100: #c8f2e8;
   --color-lagoon-300: #6adbc3;
   --color-lagoon-500: #19b89a;
+  --color-lagoon-600: #0f9a80;
   --color-lagoon-700: #0b7a66;
+  --color-lagoon-800: #0a6152;
   --color-lagoon-900: #0a4a3f;
 
-  /* Acento: uva y sol, para detalles puntuales. */
+  /* Agua: azul propio para hidratación (en lugar del sky de fábrica). */
+  --color-water-50: #ecf5fc;
+  --color-water-200: #bcdcf3;
+  --color-water-400: #5ea9e2;
+  --color-water-500: #2f8ad0;
+  --color-water-700: #1d5f95;
+
+  /* Peligro: rojo ladrillo, de la familia de la marca (errores, "te pasaste"). */
+  --color-danger-50: #fdeeeb;
+  --color-danger-300: #f0a397;
+  --color-danger-500: #d9452f;
+  --color-danger-600: #b8321f;
+
+  /* Acento: uva y sol (sol también para avisos). */
   --color-grape-100: #ece7ff;
   --color-grape-500: #7c5cfc;
+  --color-sun-50: #fff8e6;
   --color-sun-100: #fff1cc;
   --color-sun-500: #ffb020;
+  --color-sun-700: #925500;
+  --color-sun-800: #744300;
 
   /* Neutros cálidos con un toque de ciruela (reemplazan al gris frío por defecto). */
   --color-neutral-50: #fcf8f4;
@@ -44,11 +62,23 @@
   --color-neutral-800: #30283a;
   --color-neutral-900: #231c2b;
 
-  /* Esquinas más redondas y sombras suaves teñidas de cálido. */
-  --radius-lg: 0.875rem;
-  --radius-xl: 1.25rem;
-  --radius-2xl: 1.75rem;
+  /* Radios con criterio: md para chips y detalles, lg para controles y bloques internos,
+     xl para tarjetas, 2xl solo para modales. Lo redondo de verdad son los botones (full).
+     Sombras suaves teñidas de cálido. */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.625rem;
+  --radius-2xl: 0.875rem;
   --shadow-sm: 0 1px 2px rgb(120 70 30 / 0.05), 0 6px 18px -6px rgb(120 70 30 / 0.12);
+}
+
+/* Macros: se usan desde JS (style/SVG), así que se emiten siempre aunque ninguna clase los nombre. */
+@theme static {
+  --color-protein: #ff5d7a;
+  --color-carbs: #4c8df6;
+  --color-fat: #ffb020;
+  --color-macro-other: #898781;
 }
 
 @layer base {
@@ -61,10 +91,17 @@
     background-attachment: fixed;
   }
 
+  /* La serif va en el título de cada página y donde se pida con font-display.
+     Los h2/h3 de paneles quedan en Nunito: a 14-16px una serif dentro de una tarjeta hace ruido. */
   h1,
+  .font-display {
+    font-family: var(--font-display), Georgia, serif;
+    font-variation-settings: "SOFT" 50;
+    letter-spacing: -0.02em;
+  }
+
   h2,
   h3 {
-    font-family: var(--font-display), var(--font-sans), sans-serif;
     letter-spacing: -0.01em;
   }
 

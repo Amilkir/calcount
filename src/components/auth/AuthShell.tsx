@@ -10,7 +10,7 @@ export default function AuthShell({
   return (
     <div className="mx-auto flex w-full max-w-sm flex-col gap-6 py-6">
       <div className="text-center">
-        <h1 className="text-2xl font-bold">{title}</h1>
+        <h1 className="text-2xl font-semibold">{title}</h1>
         {subtitle && <p className="mt-1 text-sm text-neutral-500">{subtitle}</p>}
       </div>
       <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">

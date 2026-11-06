@@ -1,3 +1,4 @@
+import { CheckIcon, DropIcon } from "./icons";
 const GLASS_ML = 250;
 const MAX_GLASSES = 16;
 
@@ -19,26 +20,35 @@ export default function HydrationCard({
   const remaining = Math.max(0, goalMl - waterMl);
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
+    <div className="flex flex-col gap-3 rounded-xl border border-neutral-200 bg-white/70 p-4">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="font-semibold text-neutral-800">💧 Hidratación</h3>
+        <h3 className="flex items-center gap-1.5 font-semibold text-neutral-800">
+          <DropIcon className="text-water-500" />
+          Hidratación
+        </h3>
         <span
-          className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-            reached ? "bg-emerald-100 text-emerald-700" : "bg-sky-50 text-sky-700"
+          className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold ${
+            reached ? "bg-lagoon-100 text-lagoon-700" : "bg-water-50 text-water-700"
           }`}
         >
-          {reached ? "✓ Meta alcanzada" : `Faltan ${liters(remaining)} L`}
+          {reached ? (
+            <>
+              <CheckIcon size={12} /> Meta alcanzada
+            </>
+          ) : (
+            `Faltan ${liters(remaining)} L`
+          )}
         </span>
       </div>
 
-      <p className="text-2xl font-bold text-sky-700">
+      <p className="text-2xl font-bold text-water-700">
         {liters(waterMl)}
         <span className="ml-1 text-sm font-normal text-neutral-500">/ {liters(goalMl)} L</span>
       </p>
 
       <div className="h-2 w-full overflow-hidden rounded-full bg-neutral-100">
         <div
-          className={`h-full rounded-full transition-all ${reached ? "bg-emerald-500" : "bg-sky-500"}`}
+          className={`h-full rounded-full transition-all ${reached ? "bg-lagoon-500" : "bg-water-500"}`}
           style={{ width: `${percent}%` }}
         />
       </div>
@@ -56,8 +66,8 @@ export default function HydrationCard({
               aria-pressed={isFilled}
               className={`h-9 w-7 rounded-b-lg rounded-t-sm border-2 transition-colors ${
                 isFilled
-                  ? "border-sky-500 bg-sky-400"
-                  : "border-sky-200 bg-white hover:bg-sky-50"
+                  ? "border-water-500 bg-water-400"
+                  : "border-water-200 bg-white hover:bg-water-50"
               }`}
             />
           );

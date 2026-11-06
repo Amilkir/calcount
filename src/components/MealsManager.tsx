@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseIcon } from "./icons";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import type { Food } from "@/lib/types";
@@ -212,9 +213,9 @@ export default function MealsManager({
                     type="button"
                     onClick={() => setForm({ ...form, items: form.items.filter((_, i) => i !== index) })}
                     aria-label={`Quitar alimento ${index + 1}`}
-                    className="flex min-h-11 min-w-11 items-center justify-center rounded-full text-neutral-500 hover:bg-red-50 hover:text-red-600"
+                    className="flex min-h-11 min-w-11 items-center justify-center rounded-full text-neutral-500 hover:bg-danger-50 hover:text-danger-600"
                   >
-                    ✕
+                    <CloseIcon />
                   </button>
                 </div>
               );
@@ -236,7 +237,7 @@ export default function MealsManager({
             Total: <span className="font-semibold text-neutral-900">{Math.round(formCalories)} kcal</span>
           </p>
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && <p className="text-sm text-danger-600">{error}</p>}
 
           <button type="submit" disabled={submitting || incomplete} className="btn-primary self-start">
             {submitting ? "Guardando..." : form.id ? "Guardar cambios" : "Guardar comida"}
@@ -289,7 +290,7 @@ export default function MealsManager({
                 <button
                   type="button"
                   onClick={() => handleDelete(meal)}
-                  className="p-2 text-xs font-medium text-red-600 hover:underline"
+                  className="p-2 text-xs font-medium text-danger-600 hover:underline"
                 >
                   Eliminar
                 </button>

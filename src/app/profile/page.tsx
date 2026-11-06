@@ -34,7 +34,7 @@ export default async function ProfilePage() {
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <h1 className="text-2xl font-bold">Tu perfil</h1>
+        <h1 className="text-2xl font-semibold">Tu perfil</h1>
         <p className="text-sm text-neutral-500">
           Actualiza tus datos cuando algo cambie: cada ajuste queda registrado con su efecto en
           tus calorías.

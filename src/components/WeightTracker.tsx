@@ -36,7 +36,7 @@ function Sparkline({ logs }: { logs: WeightLogRow[] }) {
       role="img"
       aria-label="Tendencia del peso"
     >
-      <polyline points={points} fill="none" stroke="#19b89a" strokeWidth={2} />
+      <polyline points={points} fill="none" className="stroke-lagoon-500" strokeWidth={2} />
     </svg>
   );
 }
@@ -99,7 +99,7 @@ export default function WeightTracker({ profileId }: { profileId: string }) {
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
+    <div className="flex flex-col gap-4 border-t border-neutral-200 pt-6">
       <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
         Registro de peso
       </p>
@@ -136,7 +136,7 @@ export default function WeightTracker({ profileId }: { profileId: string }) {
           {saving ? "Guardando..." : "Registrar"}
         </button>
       </form>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-danger-600">{error}</p>}
 
       <Sparkline logs={logs} />
 
@@ -149,7 +149,7 @@ export default function WeightTracker({ profileId }: { profileId: string }) {
                 <span className="font-semibold text-neutral-800">{log.weightKg} kg</span>
                 <button
                   onClick={() => handleDelete(log.date)}
-                  className="p-1 text-xs font-medium text-red-600 hover:underline"
+                  className="p-1 text-xs font-medium text-danger-600 hover:underline"
                 >
                   Eliminar
                 </button>

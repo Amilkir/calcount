@@ -1,5 +1,6 @@
 "use client";
 
+import { AlertIcon, CheckIcon, CloseIcon } from "./icons";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
@@ -649,14 +650,14 @@ export default function ProfileForm({
                   type="button"
                   onClick={() => setSupplementRows(supplementRows.filter((_, i) => i !== index))}
                   aria-label={`Quitar suplemento ${index + 1}`}
-                  className="flex min-h-11 min-w-11 items-center justify-center rounded-full text-neutral-500 hover:bg-red-50 hover:text-red-600"
+                  className="flex min-h-11 min-w-11 items-center justify-center rounded-full text-neutral-500 hover:bg-danger-50 hover:text-danger-600"
                 >
-                  ✕
+                  <CloseIcon />
                 </button>
               </div>
             ))}
             {pendingSupplement && (
-              <p className="text-xs text-amber-700">
+              <p className="text-xs text-sun-700">
                 Elige un suplemento en cada fila (o quítala) para poder guardar.
               </p>
             )}
@@ -719,8 +720,9 @@ export default function ProfileForm({
           </p>
         )}
         {targets.warnings.map((w) => (
-          <p key={w} className="mt-1 text-amber-800">
-            ⚠ {w}
+          <p key={w} className="mt-1 flex items-start gap-1.5 text-sun-800">
+            <AlertIcon size={14} className="mt-0.5 shrink-0" />
+            {w}
           </p>
         ))}
         {targets.notes.map((n) => (
@@ -745,10 +747,11 @@ export default function ProfileForm({
         </Field>
       )}
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-danger-600">{error}</p>}
       {saved && (
-        <p className="text-sm font-semibold text-lagoon-700">
-          ✓ Cambios guardados. Mira el efecto en la pestaña Historial.
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-lagoon-700">
+          <CheckIcon className="shrink-0" />
+          Cambios guardados. Mira el efecto en la pestaña Historial.
         </p>
       )}
 

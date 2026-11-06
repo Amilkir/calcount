@@ -1,8 +1,9 @@
+import { PlusIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Preguntas frecuentes — Calcount",
+  title: "Cómo calculamos — Calcount",
   description: "Cómo calcula Calcount tus calorías, macros e hidratación, y de dónde salen sus datos.",
 };
 
@@ -198,9 +199,9 @@ export default function FaqPage() {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-2xl font-bold">Preguntas frecuentes</h1>
+        <h1 className="text-3xl font-semibold">Cómo hacemos las cuentas</h1>
         <p className="text-sm text-neutral-500">
-          Cómo calculamos tus números y de dónde salen los datos.
+          Las fórmulas detrás de tus números, de dónde salen los datos y qué hacer cuando no cuadran.
         </p>
       </div>
 
@@ -218,7 +219,7 @@ export default function FaqPage() {
                     aria-hidden
                     className="shrink-0 text-brand-600 transition-transform group-open:rotate-45"
                   >
-                    ＋
+                    <PlusIcon size={18} />
                   </span>
                 </summary>
                 <div className="flex flex-col gap-2 px-5 pb-5 text-sm leading-relaxed text-neutral-600">

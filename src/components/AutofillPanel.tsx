@@ -1,5 +1,6 @@
 "use client";
 
+import { AlertIcon, CheckIcon, CloseIcon } from "./icons";
 import { useMemo, useState } from "react";
 import type { Food } from "@/lib/types";
 import { suggestPortions, type AutofillOption, type Remaining } from "@/lib/autofill";
@@ -155,9 +156,9 @@ export default function AutofillPanel({
                   type="button"
                   onClick={() => setSelectedIds((ids) => ids.filter((id) => id !== food.id))}
                   aria-label={`Quitar ${food.name}`}
-                  className="flex h-6 w-6 items-center justify-center rounded-full text-neutral-500 hover:bg-white hover:text-red-600"
+                  className="flex h-6 w-6 items-center justify-center rounded-full text-neutral-500 hover:bg-white hover:text-danger-600"
                 >
-                  ✕
+                  <CloseIcon />
                 </button>
               </li>
             ))}
@@ -168,6 +169,7 @@ export default function AutofillPanel({
             foods={available}
             value=""
             label="Agregar alimento disponible"
+            inline
             onChange={(food) => setSelectedIds((ids) => [...ids, food.id])}
           />
         )}
@@ -201,13 +203,15 @@ export default function AutofillPanel({
               onAdd={() => add(result.macros!)}
               notice={
                 macroExcess > 0 ? (
-                  <p className="rounded-lg bg-amber-50 p-2 text-xs text-amber-800">
-                    ⚠ Con esta opción te pasas por <span className="font-semibold">{macroExcess} kcal</span>{" "}
-                    de tu meta del día.
+                  <p className="flex items-start gap-1.5 rounded-lg bg-sun-50 p-2 text-xs text-sun-800">
+                    <AlertIcon size={14} className="mt-px shrink-0" />
+                    <span>Con esta opción te pasas por <span className="font-semibold">{macroExcess} kcal</span>{" "}
+                    de tu meta del día.</span>
                   </p>
                 ) : (
-                  <p className="rounded-lg bg-emerald-50 p-2 text-xs text-emerald-800">
-                    ✓ No superas tus calorías{macroExcess < 0 ? ` (te quedan ${-macroExcess} kcal)` : ""}.
+                  <p className="flex items-start gap-1.5 rounded-lg bg-lagoon-50 p-2 text-xs text-lagoon-800">
+                    <CheckIcon size={14} className="mt-px shrink-0" />
+                    No superas tus calorías{macroExcess < 0 ? ` (te quedan ${-macroExcess} kcal)` : ""}.
                   </p>
                 )
               }

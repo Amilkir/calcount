@@ -23,11 +23,11 @@ import { decodeSupplements, type Supplement } from "@/lib/supplements";
 
 function CalorieSummarySkeleton() {
   return (
-    <div className="animate-pulse rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
+    <div className="animate-pulse rounded-xl border border-neutral-200 bg-white p-6 shadow-md shadow-brand-600/5 sm:p-7">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-2">
           <div className="h-4 w-32 rounded bg-neutral-100" />
-          <div className="h-9 w-24 rounded bg-neutral-100" />
+          <div className="h-12 w-28 rounded bg-neutral-100" />
         </div>
         <div className="flex flex-col items-end gap-2">
           <div className="h-4 w-28 rounded bg-neutral-100" />
@@ -270,7 +270,7 @@ export default function Dashboard({
     <div className="flex flex-col gap-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">{profile.name}</h1>
+          <h1 className="text-2xl font-semibold">{profile.name}</h1>
           <p className="text-sm capitalize text-neutral-500">{formatDateDisplay(dateKey)}</p>
         </div>
         <Link href="/profile" className="btn-secondary shrink-0">

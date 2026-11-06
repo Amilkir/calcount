@@ -1,5 +1,6 @@
 "use client";
 
+import { CheckIcon } from "./icons";
 import { useId, useMemo, useRef, useState } from "react";
 import type { Food } from "@/lib/types";
 
@@ -9,23 +10,29 @@ const MAX_RESULTS = 50;
 const normalize = (text: string) =>
   text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
-/** Selector de alimento con buscador. Vacío muestra "Seleccione…". */
+/**
+ * Selector de alimento con buscador. Vacío muestra "Seleccione…".
+ * `inline`: la lista va dentro del flujo (no flota) y arranca abierta, para usarlo
+ * dentro de un modal con scroll, donde una lista flotante quedaría recortada.
+ */
 export default function FoodPicker({
   foods,
   value,
   onChange,
   label,
   className = "",
+  inline = false,
 }: {
   foods: Food[];
   value: string;
   onChange: (food: Food) => void;
   label: string;
   className?: string;
+  inline?: boolean;
 }) {
   const listId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(inline);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
 
@@ -79,7 +86,13 @@ export default function FoodPicker({
         aria-activedescendant={open && results[active] ? `${listId}-${active}` : undefined}
         autoComplete="off"
         value={open ? query : selected ? `${selected.icon} ${selected.name}` : ""}
-        placeholder={open && selected ? `${selected.icon} ${selected.name}` : "Seleccione…"}
+        placeholder={
+          open && selected
+            ? `${selected.icon} ${selected.name}`
+            : inline
+              ? "Buscar alimento..."
+              : "Seleccione…"
+        }
         onFocus={() => {
           setOpen(true);
           setQuery("");
@@ -110,7 +123,11 @@ export default function FoodPicker({
         <ul
           id={listId}
           role="listbox"
-          className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-neutral-200 bg-white py-1 shadow-lg"
+          className={
+            inline
+              ? "mt-3 max-h-72 w-full overflow-y-auto rounded-lg border border-neutral-100 bg-white"
+              : "absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-neutral-200 bg-white py-1 shadow-lg"
+          }
         >
           {results.length === 0 && (
             <li className="px-3 py-2 text-sm text-neutral-500">No se encontraron alimentos.</li>
@@ -128,15 +145,15 @@ export default function FoodPicker({
               }}
               onMouseEnter={() => setActive(i)}
               className={`flex cursor-pointer items-center gap-2 px-3 py-2 text-sm ${
-                i === active ? "bg-brand-50" : ""
-              }`}
+                inline ? "border-b border-neutral-100 last:border-none" : ""
+              } ${i === active ? "bg-brand-50" : ""}`}
             >
               <span className="text-lg">{food.icon}</span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-neutral-800">{food.name}</span>
                 <span className="block truncate text-xs text-neutral-500">{food.category}</span>
               </span>
-              {food.id === value && <span className="text-brand-700">✓</span>}
+              {food.id === value && <CheckIcon className="shrink-0 text-brand-700" />}
             </li>
           ))}
         </ul>

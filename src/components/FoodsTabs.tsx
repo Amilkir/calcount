@@ -20,7 +20,7 @@ export default function FoodsTabs({
 
   return (
     <div className="flex flex-col gap-5">
-      <h1 className="text-2xl font-bold">Alimentos</h1>
+      <h1 className="text-2xl font-semibold">Alimentos</h1>
       <div className="flex gap-1 self-start rounded-full bg-neutral-100 p-1">
         <button type="button" onClick={() => setTab("foods")} className={tabClass(tab === "foods")}>
           Alimentos

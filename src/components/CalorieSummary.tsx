@@ -10,12 +10,12 @@ export default function CalorieSummary({
   const over = remaining < 0;
 
   return (
-    <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
+    <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-md shadow-brand-600/5 sm:p-7">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm text-neutral-500">Calorías restantes hoy</p>
           <p
-            className={`text-4xl font-bold ${over ? "text-red-600" : "text-emerald-700"}`}
+            className={`font-display text-5xl font-semibold tabular-nums ${over ? "text-danger-600" : "text-lagoon-700"}`}
           >
             {over ? `${remaining} (excedido)` : remaining}
             <span className="ml-1 text-lg font-normal text-neutral-500">kcal</span>
@@ -32,7 +32,7 @@ export default function CalorieSummary({
       </div>
       <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-neutral-100">
         <div
-          className={`h-full rounded-full transition-all ${over ? "bg-red-500" : "bg-emerald-500"}`}
+          className={`h-full rounded-full transition-all ${over ? "bg-danger-500" : "bg-lagoon-500"}`}
           style={{ width: `${over ? 100 : percent}%` }}
         />
       </div>

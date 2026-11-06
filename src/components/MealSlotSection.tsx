@@ -1,5 +1,6 @@
 "use client";
 
+import { CheckIcon, CloseIcon, PencilIcon } from "./icons";
 import { useState } from "react";
 import type { FoodEntryWithFood } from "@/lib/types";
 import { entryCalories } from "@/lib/meals";
@@ -77,9 +78,9 @@ function EntryRow({
             type="submit"
             disabled={saving || !valid}
             aria-label="Guardar cambio"
-            className="flex h-8 w-8 items-center justify-center rounded-full text-emerald-600 hover:bg-emerald-50 disabled:opacity-40"
+            className="flex h-8 w-8 items-center justify-center rounded-full text-lagoon-600 hover:bg-lagoon-50 disabled:opacity-40"
           >
-            ✓
+            <CheckIcon />
           </button>
           <button
             type="button"
@@ -94,7 +95,7 @@ function EntryRow({
             ↺
           </button>
         </form>
-        {error && <p className="mt-1 text-xs text-red-600">No se pudo guardar el cambio.</p>}
+        {error && <p className="mt-1 text-xs text-danger-600">No se pudo guardar el cambio.</p>}
       </li>
     );
   }
@@ -125,15 +126,15 @@ function EntryRow({
           aria-label={`Editar ${name}`}
           className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-500 hover:text-brand-700"
         >
-          ✎
+          <PencilIcon size={14} />
         </button>
         <button
           type="button"
           onClick={() => onDelete(entry.id)}
           aria-label={`Eliminar ${name}`}
-          className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-500 hover:text-red-600"
+          className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-500 hover:text-danger-600"
         >
-          ✕
+          <CloseIcon />
         </button>
       </span>
     </li>
