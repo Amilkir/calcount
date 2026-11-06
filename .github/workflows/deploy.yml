@@ -3,7 +3,8 @@ name: Deploy to Cloudflare
 # Each push to main deploys the app to https://calcount.ck-vs.com.
 # The account ID, the D1 database and the custom domain are in wrangler.jsonc.
 # App secrets (Better Auth, Google, Resend) are in the Cloudflare Worker, not here.
-# The only GitHub secret is CLOUDFLARE_API_TOKEN.
+# The only GitHub secret is CLOUDFLARE_API_TOKEN. It must have D1 Edit permission
+# (for the migrations and the food catalog) and Workers Scripts Edit (for the deploy).
 
 on:
   push:
@@ -43,6 +44,15 @@ jobs:
       # If a migration fails, the job stops and the old version stays live.
       - name: Apply D1 migrations
         run: npx wrangler d1 migrations apply calcount-db --remote
+
+      # Load the global food catalog (prisma/seed.ts). seed.sql is made again here, so
+      # seed.ts is the only source. It is safe to run on each deploy: each food is an
+      # upsert on a fixed id, and it changes only global foods (userId null). It does not
+      # touch users, entries or foods that users made.
+      - name: Load global food catalog
+        run: |
+          npm run db:seed:sql
+          npm run db:seed:remote
 
       - name: Build and deploy the Worker
         run: npm run deploy

@@ -1,11 +1,16 @@
 "use client";
 
+import { CheckIcon, CloseIcon } from "./icons";
 import Link from "next/link";
 import type { Remaining } from "@/lib/autofill";
 import AutofillPanel from "./AutofillPanel";
 import { useMemo, useState } from "react";
 import type { Food } from "@/lib/types";
 import { SERVING_UNIT_LABELS } from "@/lib/labels";
+import { foodMacrosPerServing } from "@/lib/macros";
+
+// La API acepta hasta 20 alimentos por envío.
+const MAX_PLATE = 20;
 import {
   entryCalories,
   templateCalories,
@@ -36,10 +41,10 @@ export default function AddEntryModal({
   const [mode, setMode] = useState<"food" | "meal" | "autofill" | "free">("food");
   const [selectedMealId, setSelectedMealId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [selectedFoodId, setSelectedFoodId] = useState<string | null>(null);
-  const [quantity, setQuantity] = useState<number>(100);
+  // El plato: varios alimentos con su cantidad. null = campo vacío (no se puede agregar aún).
+  const [plate, setPlate] = useState<{ foodId: string; quantity: number | null }[]>([]);
   const [description, setDescription] = useState("");
-  const [freeCalories, setFreeCalories] = useState<number>(0);
+  const [freeCalories, setFreeCalories] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const filtered = useMemo(() => {
@@ -50,19 +55,47 @@ export default function AddEntryModal({
     );
   }, [foods, search]);
 
-  const selectedFood = foods.find((f) => f.id === selectedFoodId) ?? null;
+  const plateRows = plate
+    .map((row) => {
+      const food = foods.find((f) => f.id === row.foodId);
+      if (!food) return null;
+      const servings = row.quantity ? (food.servingUnit === "UNIT" ? row.quantity : row.quantity / 100) : 0;
+      const per = foodMacrosPerServing(food);
+      return {
+        ...row,
+        food,
+        calories: per.calories * servings,
+        protein: per.protein * servings,
+        carbs: per.carbs * servings,
+        fat: per.fat * servings,
+      };
+    })
+    .filter((r) => r !== null);
+  const plateTotals = plateRows.reduce(
+    (t, r) => ({
+      calories: t.calories + r.calories,
+      protein: t.protein + r.protein,
+      carbs: t.carbs + r.carbs,
+      fat: t.fat + r.fat,
+    }),
+    { calories: 0, protein: 0, carbs: 0, fat: 0 }
+  );
+  const plateInvalid =
+    plateRows.length === 0 || plateRows.some((r) => r.quantity == null || r.quantity <= 0);
 
-  const previewCalories = selectedFood
-    ? selectedFood.servingUnit === "UNIT"
-      ? selectedFood.calories * quantity
-      : selectedFood.calories * (quantity / 100)
-    : 0;
+  function addToPlate(food: Food) {
+    if (plate.some((r) => r.foodId === food.id) || plate.length >= MAX_PLATE) return;
+    setPlate((prev) => [...prev, { foodId: food.id, quantity: food.servingUnit === "UNIT" ? 1 : 100 }]);
+  }
 
   async function handleSubmitFood(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedFood || quantity <= 0) return;
+    if (plateInvalid) return;
     setSubmitting(true);
-    await onSubmit({ kind: "food", foodId: selectedFood.id, quantity });
+    await onSubmit({
+      kind: "batch",
+      foods: plateRows.map((r) => ({ foodId: r.foodId, quantity: r.quantity as number })),
+    });
     setSubmitting(false);
   }
 
@@ -99,22 +132,25 @@ export default function AddEntryModal({
     setSubmitting(false);
   }
 
+  const freeInvalid = !description.trim() || freeCalories == null || freeCalories <= 0;
+
   async function handleSubmitFree(e: React.FormEvent) {
     e.preventDefault();
-    if (!description.trim() || freeCalories <= 0) return;
+    if (freeInvalid || freeCalories == null) return;
     setSubmitting(true);
     await onSubmit({ kind: "free", description: description.trim(), calories: freeCalories });
     setSubmitting(false);
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-      onClick={onClose}
-    >
+    // El borde superior queda fijo y el modal crece hacia abajo según la pestaña, así las
+    // pestañas no se mueven bajo el cursor. Solo se cierra con la X o al agregar.
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 px-4 pt-[6vh] pb-4">
       <div
-        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-6 shadow-lg"
-        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Agregar a ${mealLabel}`}
+        className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-lg"
       >
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Agregar a {mealLabel}</h2>
@@ -124,7 +160,7 @@ export default function AddEntryModal({
             className="text-neutral-400 hover:text-neutral-600"
             aria-label="Cerrar"
           >
-            ✕
+            <CloseIcon />
           </button>
         </div>
 
@@ -288,97 +324,120 @@ export default function AddEntryModal({
             </form>
           )
         ) : mode === "food" ? (
-          !selectedFood ? (
-            <div className="mt-4 flex flex-col gap-3">
-              <input
-                autoFocus
-                type="text"
-                placeholder="Buscar alimento..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="rounded-lg border border-neutral-300 px-3 py-2"
-              />
-              <div className="max-h-72 overflow-y-auto rounded-lg border border-neutral-100">
-                {filtered.length === 0 && (
-                  <p className="p-4 text-sm text-neutral-400">
-                    No se encontraron alimentos.
-                  </p>
-                )}
-                {filtered.map((food) => (
+          <form onSubmit={handleSubmitFood} className="mt-4 flex flex-col gap-3">
+            <input
+              autoFocus
+              type="text"
+              placeholder="Buscar alimento..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              aria-label="Buscar alimento"
+              className="rounded-lg border border-neutral-300 px-3 py-2"
+            />
+            {/* Tocar un alimento lo suma al plato; los que ya están se marcan. */}
+            <div
+              className={`overflow-y-auto rounded-lg border border-neutral-100 ${
+                plateRows.length > 0 ? "max-h-48" : "max-h-72"
+              }`}
+            >
+              {filtered.length === 0 && (
+                <p className="p-4 text-sm text-neutral-400">No se encontraron alimentos.</p>
+              )}
+              {filtered.map((food) => {
+                const inPlate = plate.some((r) => r.foodId === food.id);
+                return (
                   <button
                     type="button"
                     key={food.id}
-                    onClick={() => {
-                      setSelectedFoodId(food.id);
-                      setQuantity(food.servingUnit === "UNIT" ? 1 : 100);
-                    }}
-                    className="flex w-full items-center gap-3 border-b border-neutral-100 px-3 py-2 text-left last:border-none hover:bg-neutral-50"
+                    onClick={() => addToPlate(food)}
+                    disabled={inPlate}
+                    aria-label={inPlate ? `${food.name} (ya en el plato)` : `Sumar ${food.name}`}
+                    className={`flex w-full items-center gap-3 border-b border-neutral-100 px-3 py-2 text-left last:border-none ${
+                      inPlate ? "cursor-default bg-lagoon-50" : "hover:bg-neutral-50"
+                    }`}
                   >
                     <span className="text-xl">{food.icon}</span>
                     <span className="flex-1">
-                      <span className="block text-sm font-medium text-neutral-800">
-                        {food.name}
-                      </span>
+                      <span className="block text-sm font-medium text-neutral-800">{food.name}</span>
                       <span className="block text-xs text-neutral-400">{food.category}</span>
                     </span>
-                    <span className="whitespace-nowrap text-xs text-neutral-500">
-                      {food.calories} kcal {SERVING_UNIT_LABELS[food.servingUnit]}
-                    </span>
+                    {inPlate ? (
+                      <CheckIcon className="shrink-0 text-lagoon-700" />
+                    ) : (
+                      <span className="whitespace-nowrap text-xs text-neutral-500">
+                        {food.calories} kcal {SERVING_UNIT_LABELS[food.servingUnit]}
+                      </span>
+                    )}
                   </button>
-                ))}
-              </div>
+                );
+              })}
             </div>
-          ) : (
-            <form onSubmit={handleSubmitFood} className="mt-4 flex flex-col gap-4">
-              <div className="flex items-center gap-3 rounded-lg bg-neutral-50 p-3">
-                <span className="text-2xl">{selectedFood.icon}</span>
-                <div className="flex-1">
-                  <p className="text-sm font-medium">{selectedFood.name}</p>
-                  <p className="text-xs text-neutral-500">
-                    {selectedFood.calories} kcal {SERVING_UNIT_LABELS[selectedFood.servingUnit]}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedFoodId(null)}
-                  className="text-xs font-semibold text-brand-700 hover:underline"
-                >
-                  Cambiar
-                </button>
-              </div>
 
-              <label className="flex flex-col gap-1">
-                <span className="text-sm font-medium text-neutral-700">
-                  Cantidad {selectedFood.servingUnit === "UNIT" ? "(unidades)" : "(gramos)"}
-                </span>
-                <input
-                  type="number"
-                  min={1}
-                  step={1}
-                  value={quantity}
-                  onChange={(e) => setQuantity(Number(e.target.value))}
-                  className="rounded-lg border border-neutral-300 px-3 py-2"
-                  required
-                  autoFocus
-                />
-              </label>
-
-              <p className="text-sm text-neutral-600">
-                Calorías estimadas:{" "}
-                <span className="font-semibold text-neutral-900">
-                  {Math.round(previewCalories)} kcal
-                </span>
+            {plateRows.length === 0 ? (
+              <p className="text-xs text-neutral-500">
+                Toca los alimentos que vas a comer; puedes sumar varios y ajustar cada cantidad antes de
+                agregarlos.
               </p>
+            ) : (
+              <div className="flex flex-col rounded-lg border border-neutral-200">
+                <ul className="flex flex-col divide-y divide-neutral-100 px-3 text-sm">
+                  {plateRows.map((row) => (
+                    <li key={row.foodId} className="flex items-center gap-2 py-2">
+                      <span className="min-w-0 flex-1 truncate text-neutral-800">
+                        {row.food.icon} {row.food.name}
+                      </span>
+                      <input
+                        type="number"
+                        min={row.food.servingUnit === "UNIT" ? 0.5 : 1}
+                        step="any"
+                        inputMode="decimal"
+                        value={row.quantity ?? ""}
+                        onChange={(e) => {
+                          const value = e.target.value === "" ? null : Number(e.target.value);
+                          setPlate((prev) =>
+                            prev.map((r) => (r.foodId === row.foodId ? { ...r, quantity: value } : r))
+                          );
+                        }}
+                        aria-label={`Cantidad de ${row.food.name}`}
+                        className="w-20 rounded-lg border border-neutral-300 px-2 py-1"
+                      />
+                      <span className="w-4 text-neutral-500">
+                        {row.food.servingUnit === "UNIT" ? "u" : "g"}
+                      </span>
+                      <span className="w-16 whitespace-nowrap text-right tabular-nums text-neutral-500">
+                        {row.quantity ? `${Math.round(row.calories)} kcal` : "–"}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setPlate((prev) => prev.filter((r) => r.foodId !== row.foodId))}
+                        aria-label={`Quitar ${row.food.name}`}
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-neutral-500 hover:bg-danger-50 hover:text-danger-600"
+                      >
+                        <CloseIcon />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-t border-neutral-200 bg-neutral-50 px-3 py-2 text-sm">
+                  <span className="font-semibold text-neutral-900">
+                    Total {Math.round(plateTotals.calories)} kcal
+                  </span>
+                  <span className="text-xs text-neutral-500">
+                    P {Math.round(plateTotals.protein)} g · C {Math.round(plateTotals.carbs)} g · G{" "}
+                    {Math.round(plateTotals.fat)} g
+                  </span>
+                </div>
+              </div>
+            )}
 
-              <button
-                type="submit"
-                disabled={submitting}
-                className="btn-primary"
-              >
-                {submitting ? "Agregando..." : "Agregar"}
-              </button>
-            </form>
-          )
+            <button type="submit" disabled={submitting || plateInvalid} className="btn-primary">
+              {submitting
+                ? "Agregando..."
+                : plateRows.length > 1
+                  ? `Agregar ${plateRows.length} alimentos`
+                  : "Agregar"}
+            </button>
+          </form>
         ) : (
           <form onSubmit={handleSubmitFree} className="mt-4 flex flex-col gap-4">
             <label className="flex flex-col gap-1">
@@ -400,8 +459,10 @@ export default function AddEntryModal({
                 type="number"
                 min={1}
                 step={1}
-                value={freeCalories}
-                onChange={(e) => setFreeCalories(Number(e.target.value))}
+                value={freeCalories ?? ""}
+                onChange={(e) =>
+                  setFreeCalories(e.target.value === "" ? null : Number(e.target.value))
+                }
                 className="rounded-lg border border-neutral-300 px-3 py-2"
                 required
               />
@@ -409,7 +470,7 @@ export default function AddEntryModal({
 
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || freeInvalid}
               className="btn-primary"
             >
               {submitting ? "Agregando..." : "Agregar"}

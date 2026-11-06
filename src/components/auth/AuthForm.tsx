@@ -110,7 +110,7 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
           />
         </label>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-danger-600">{error}</p>}
 
         <button type="submit" disabled={pending} className={primaryButtonClass}>
           {pending ? "Un momento…" : mode === "signup" ? "Crear cuenta" : "Iniciar sesión"}

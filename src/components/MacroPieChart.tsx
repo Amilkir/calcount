@@ -7,10 +7,10 @@ type MacroKey = "CARBOHIDRATOS" | "PROTEINAS" | "GRASAS" | "OTROS";
 const MACRO_ORDER: MacroKey[] = ["CARBOHIDRATOS", "PROTEINAS", "GRASAS", "OTROS"];
 
 const MACRO_COLORS: Record<MacroKey, string> = {
-  CARBOHIDRATOS: "#4c8df6",
-  PROTEINAS: "#ff5d7a",
-  GRASAS: "#ffb020",
-  OTROS: "#898781",
+  CARBOHIDRATOS: "var(--color-carbs)",
+  PROTEINAS: "var(--color-protein)",
+  GRASAS: "var(--color-fat)",
+  OTROS: "var(--color-macro-other)",
 };
 
 const MACRO_LABELS: Record<MacroKey, string> = {
@@ -100,7 +100,7 @@ export default function MacroPieChart({ entries }: { entries: FoodEntryWithFood[
               <path
                 key={slice.key}
                 d={slice.path}
-                fill={MACRO_COLORS[slice.key]}
+                style={{ fill: MACRO_COLORS[slice.key] }}
                 stroke="#fcfcfb"
                 strokeWidth={2}
               />

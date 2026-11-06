@@ -1,3 +1,4 @@
+import { CapsuleIcon, CheckIcon } from "./icons";
 import { SUPPLEMENT_LABELS, type Supplement } from "@/lib/supplements";
 
 export default function SupplementsCard({
@@ -13,15 +14,24 @@ export default function SupplementsCard({
   const allTaken = takenCount === supplements.length;
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
+    <div className="flex flex-col gap-3 rounded-xl border border-neutral-200 bg-white/70 p-4">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="font-semibold text-neutral-800">💊 Suplementos</h3>
+        <h3 className="flex items-center gap-1.5 font-semibold text-neutral-800">
+          <CapsuleIcon className="text-grape-500" />
+          Suplementos
+        </h3>
         <span
-          className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-            allTaken ? "bg-emerald-100 text-emerald-700" : "bg-grape-100 text-grape-500"
+          className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold ${
+            allTaken ? "bg-lagoon-100 text-lagoon-700" : "bg-grape-100 text-grape-500"
           }`}
         >
-          {allTaken ? "✓ Todos tomados" : `${takenCount} de ${supplements.length}`}
+          {allTaken ? (
+            <>
+              <CheckIcon size={12} /> Todos tomados
+            </>
+          ) : (
+            `${takenCount} de ${supplements.length}`
+          )}
         </span>
       </div>
 
@@ -35,7 +45,7 @@ export default function SupplementsCard({
                   type="checkbox"
                   checked={checked}
                   onChange={(e) => onToggle(supplement, e.target.checked)}
-                  className="h-5 w-5 accent-emerald-600"
+                  className="h-5 w-5 accent-lagoon-600"
                 />
                 <span
                   className={`text-sm ${checked ? "text-neutral-500 line-through" : "text-neutral-800"}`}

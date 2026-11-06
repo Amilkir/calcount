@@ -206,7 +206,7 @@ export default function FoodsManager({ foods }: { foods: Food[] }) {
             </p>
           </div>
 
-          {error && <p className="text-sm text-red-600 sm:col-span-2">{error}</p>}
+          {error && <p className="text-sm text-danger-600 sm:col-span-2">{error}</p>}
 
           <button
             type="submit"
@@ -258,7 +258,7 @@ export default function FoodsManager({ foods }: { foods: Food[] }) {
                         {food.userId ? (
                           <button
                             onClick={() => handleDelete(food.id, food.name)}
-                            className="p-2 text-xs font-medium text-red-600 hover:underline"
+                            className="p-2 text-xs font-medium text-danger-600 hover:underline"
                           >
                             Eliminar
                           </button>

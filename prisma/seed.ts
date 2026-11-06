@@ -19,7 +19,8 @@ const foods = [
   { name: "Merluza cocida", category: "Pescados y mariscos", icon: "🐟", servingUnit: "GRAMS_100", foodType: "PROTEINAS", calories: 90, protein: 19, carbs: 0, fat: 1.5 },
   { name: "Carne picada de res cocida", category: "Carnes", icon: "🥩", servingUnit: "GRAMS_100", foodType: "PROTEINAS", calories: 254, protein: 26, carbs: 0, fat: 17 },
   { name: "Fajitas", category: "Cereales y granos", icon: "🫓", servingUnit: "UNIT", foodType: "CARBOHIDRATOS", calories: 79, protein: 2.2, carbs: 13, fat: 2 },
-  { name: "Proteína", category: "Suplementos", icon: "🥤", servingUnit: "UNIT", foodType: "PROTEINAS", calories: 134, protein: 25, carbs: 4, fat: 2 },
+  // id fijo: se renombró desde "Proteína" y los registros existentes apuntan a este id.
+  { id: "global-proteina", name: "Proteína en polvo (suero lácteo)", category: "Suplementos", icon: "🥤", servingUnit: "UNIT", foodType: "PROTEINAS", calories: 134, protein: 25, carbs: 4, fat: 2 },
   { name: "Huevo", category: "Huevos y lácteos", icon: "🥚", servingUnit: "UNIT", foodType: "PROTEINAS", calories: 78, protein: 6.3, carbs: 0.6, fat: 5.3 },
   { name: "Leche entera", category: "Huevos y lácteos", icon: "🥛", servingUnit: "GRAMS_100", foodType: "PROTEINAS", calories: 61, protein: 3.2, carbs: 4.8, fat: 3.3 },
   { name: "Yogurt natural entero", category: "Huevos y lácteos", icon: "🥛", servingUnit: "GRAMS_100", foodType: "PROTEINAS", calories: 61, protein: 3.5, carbs: 4.7, fat: 3.3 },
@@ -57,6 +58,22 @@ const foods = [
   { name: "Mandarina", category: "Frutas", icon: "🍊", servingUnit: "UNIT", foodType: "CARBOHIDRATOS", calories: 47, protein: 0.7, carbs: 11.7, fat: 0.3 },
   { name: "Aceitunas", category: "Encurtidos", icon: "🫒", servingUnit: "GRAMS_100", foodType: "GRASAS", calories: 115, protein: 0.8, carbs: 6.3, fat: 10.7 },
   { name: "Pepinillos", category: "Encurtidos", icon: "🥒", servingUnit: "GRAMS_100", foodType: "CARBOHIDRATOS", calories: 11, protein: 0.3, carbs: 2.3, fat: 0.2 },
+  // Valores de USDA FoodData Central (SR Legacy). Las porciones por unidad usan el peso de
+  // referencia de USDA, indicado en el nombre.
+  { name: "Aceite de oliva crudo (cucharadita, 4.5 g)", category: "Aceites y grasas", icon: "🫒", servingUnit: "UNIT", foodType: "GRASAS", calories: 40, protein: 0, carbs: 0, fat: 4.5 },
+  { name: "Castañas de cajú", category: "Frutos secos", icon: "🌰", servingUnit: "GRAMS_100", foodType: "GRASAS", calories: 553, protein: 18.2, carbs: 30.2, fat: 43.9 },
+  { name: "Pistacho", category: "Frutos secos", icon: "🥜", servingUnit: "GRAMS_100", foodType: "GRASAS", calories: 560, protein: 20.2, carbs: 27.2, fat: 45.3 },
+  { name: "Kiwi", category: "Frutas", icon: "🥝", servingUnit: "GRAMS_100", foodType: "CARBOHIDRATOS", calories: 61, protein: 1.1, carbs: 14.7, fat: 0.5 },
+  { name: "Leche descremada", category: "Huevos y lácteos", icon: "🥛", servingUnit: "GRAMS_100", foodType: "PROTEINAS", calories: 34, protein: 3.4, carbs: 5, fat: 0.1 },
+  { name: "Garbanzo cocido", category: "Leguminosas", icon: "🫘", servingUnit: "GRAMS_100", foodType: "CARBOHIDRATOS", calories: 164, protein: 8.9, carbs: 27.4, fat: 2.6 },
+  { name: "Pan de molde blanco (rebanada, 25 g)", category: "Cereales y granos", icon: "🍞", servingUnit: "UNIT", foodType: "CARBOHIDRATOS", calories: 67, protein: 2.2, carbs: 12.3, fat: 0.8 },
+  { name: "Pan de molde integral (rebanada, 32 g)", category: "Cereales y granos", icon: "🍞", servingUnit: "UNIT", foodType: "CARBOHIDRATOS", calories: 81, protein: 4, carbs: 13.7, fat: 1.1 },
+  { name: "Leche de coco (de lata)", category: "Bebidas vegetales", icon: "🥥", servingUnit: "GRAMS_100", foodType: "GRASAS", calories: 197, protein: 2, carbs: 2.8, fat: 21.3 },
+  { name: "Leche de almendras sin azúcar", category: "Bebidas vegetales", icon: "🥛", servingUnit: "GRAMS_100", foodType: "GRASAS", calories: 15, protein: 0.6, carbs: 0.6, fat: 1.1 },
+  { name: "Leche de soja sin azúcar", category: "Bebidas vegetales", icon: "🥛", servingUnit: "GRAMS_100", foodType: "PROTEINAS", calories: 33, protein: 2.9, carbs: 1.7, fat: 1.6 },
+  { name: "Tofu firme", category: "Leguminosas", icon: "🫛", servingUnit: "GRAMS_100", foodType: "PROTEINAS", calories: 144, protein: 15.8, carbs: 4.3, fat: 8.7 },
+  { name: "Soja texturizada (seca)", category: "Leguminosas", icon: "🫘", servingUnit: "GRAMS_100", foodType: "PROTEINAS", calories: 330, protein: 51.5, carbs: 33.9, fat: 1.2 },
+  { name: "Ricotta (leche entera)", category: "Huevos y lácteos", icon: "🧀", servingUnit: "GRAMS_100", foodType: "PROTEINAS", calories: 174, protein: 11.3, carbs: 3, fat: 13 },
 ] as const;
 
 const sql = (v: string | number | null) =>
@@ -74,7 +91,8 @@ const slug = (name: string) =>
 
 const statements = foods.map((f) => {
   const cols = ["id", "userId", "name", "category", "icon", "servingUnit", "foodType", "calories", "protein", "carbs", "fat"];
-  const vals = [`global-${slug(f.name)}`, null, f.name, f.category, f.icon, f.servingUnit, f.foodType, f.calories, f.protein, f.carbs, f.fat];
+  const id = "id" in f ? f.id : `global-${slug(f.name)}`;
+  const vals = [id, null, f.name, f.category, f.icon, f.servingUnit, f.foodType, f.calories, f.protein, f.carbs, f.fat];
   const updates = cols
     .filter((c) => c !== "id" && c !== "userId")
     .map((c) => `"${c}" = excluded."${c}"`)

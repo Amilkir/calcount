@@ -12,7 +12,7 @@ export default async function NewProfilePage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold">Crea tu perfil</h1>
+      <h1 className="text-2xl font-semibold">Crea tu perfil</h1>
       <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
         <ProfileForm mode="create" />
       </div>

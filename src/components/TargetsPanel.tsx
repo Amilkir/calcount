@@ -1,11 +1,12 @@
+import { AlertIcon } from "./icons";
 import type { CalorieTargets } from "@/lib/calories";
 import { sumDayMacros } from "@/lib/macros";
 import type { FoodEntryWithFood } from "@/lib/types";
 
 const BARS = [
-  { key: "protein", goalKey: "proteinG", label: "Proteína", color: "#ff5d7a" },
-  { key: "carbs", goalKey: "carbsG", label: "Carbohidratos", color: "#4c8df6" },
-  { key: "fat", goalKey: "fatG", label: "Grasa", color: "#ffb020" },
+  { key: "protein", goalKey: "proteinG", label: "Proteína", color: "var(--color-protein)" },
+  { key: "carbs", goalKey: "carbsG", label: "Carbohidratos", color: "var(--color-carbs)" },
+  { key: "fat", goalKey: "fatG", label: "Grasa", color: "var(--color-fat)" },
 ] as const;
 
 export default function TargetsPanel({
@@ -88,8 +89,9 @@ export default function TargetsPanel({
       )}
 
       {targets.warnings.map((w) => (
-        <p key={w} className="rounded-lg bg-amber-50 p-2 text-xs text-amber-800">
-          ⚠ {w}
+        <p key={w} className="flex items-start gap-1.5 rounded-lg bg-sun-50 p-2 text-xs text-sun-800">
+          <AlertIcon size={14} className="mt-px shrink-0" />
+          {w}
         </p>
       ))}
       {targets.notes.map((n) => (
