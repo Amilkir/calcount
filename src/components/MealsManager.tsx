@@ -14,7 +14,7 @@ import {
 } from "@/lib/meals";
 import FoodPicker from "./FoodPicker";
 
-const INPUT_CLASS = "rounded-lg border border-neutral-300 px-3 py-2";
+const INPUT_CLASS = "rounded-lg border border-neutral-300 px-3 py-2 text-sm";
 
 // "" = fila nueva sin alimento elegido; null = cantidad vacía.
 interface ItemRow {
@@ -118,8 +118,8 @@ export default function MealsManager({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-neutral-500">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs sm:text-sm text-neutral-500">
           Guarda lo que comes seguido para cargarlo de una vez desde el panel del día.
         </p>
         <button
@@ -137,13 +137,13 @@ export default function MealsManager({
       {form && (
         <form
           onSubmit={handleSubmit}
-          className="flex flex-col gap-4 rounded-xl border border-neutral-200 bg-white p-5 shadow-sm"
+          className="flex flex-col gap-4 rounded-xl border border-neutral-200 bg-white p-4 sm:p-5 shadow-sm"
         >
           <h2 className="font-semibold text-neutral-800">
             {form.id ? "Editar comida" : "Nueva comida"}
           </h2>
 
-          <div className="grid gap-4 sm:grid-cols-[1fr_8rem]">
+          <div className="grid gap-3 sm:gap-4 sm:grid-cols-[1fr_8rem]">
             <label className="flex flex-col gap-1">
               <span className="text-sm font-medium text-neutral-700">Nombre</span>
               <input
@@ -173,7 +173,10 @@ export default function MealsManager({
             {form.items.map((item, index) => {
               const food = foodsById.get(item.foodId);
               return (
-                <div key={index} className="flex flex-wrap items-center gap-2">
+                <div
+                  key={index}
+                  className="flex flex-col sm:flex-row sm:items-center gap-2 rounded-lg border border-neutral-100 p-2 sm:border-none sm:p-0"
+                >
                   <FoodPicker
                     foods={foods}
                     value={item.foodId}
@@ -185,38 +188,40 @@ export default function MealsManager({
                         quantity: item.quantity ?? (next.servingUnit === "UNIT" ? 1 : 100),
                       })
                     }
-                    className="min-w-0 flex-1 basis-48"
+                    className="w-full sm:min-w-0 sm:flex-1 sm:basis-48"
                   />
-                  <label className="flex items-center gap-1">
-                    <input
-                      type="number"
-                      min={0.1}
-                      step="any"
-                      value={item.quantity ?? ""}
-                      onChange={(e) =>
-                        updateItem(index, {
-                          quantity: e.target.value === "" ? null : Number(e.target.value),
-                        })
-                      }
-                      aria-label={`Cantidad del alimento ${index + 1}`}
-                      className={`${INPUT_CLASS} w-24`}
-                      required
-                    />
-                    <span className="w-6 text-sm text-neutral-500">
-                      {food?.servingUnit === "UNIT" ? "u" : "g"}
+                  <div className="flex items-center justify-between sm:justify-start gap-2">
+                    <label className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min={0.1}
+                        step="any"
+                        value={item.quantity ?? ""}
+                        onChange={(e) =>
+                          updateItem(index, {
+                            quantity: e.target.value === "" ? null : Number(e.target.value),
+                          })
+                        }
+                        aria-label={`Cantidad del alimento ${index + 1}`}
+                        className={`${INPUT_CLASS} w-20 sm:w-24`}
+                        required
+                      />
+                      <span className="w-5 sm:w-6 text-xs sm:text-sm text-neutral-500">
+                        {food?.servingUnit === "UNIT" ? "u" : "g"}
+                      </span>
+                    </label>
+                    <span className="w-14 sm:w-16 text-right text-xs sm:text-sm text-neutral-500 tabular-nums">
+                      {food && item.quantity ? `${Math.round(entryCalories(food, item.quantity))} kcal` : ""}
                     </span>
-                  </label>
-                  <span className="w-16 text-right text-sm text-neutral-500">
-                    {food && item.quantity ? `${Math.round(entryCalories(food, item.quantity))} kcal` : ""}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setForm({ ...form, items: form.items.filter((_, i) => i !== index) })}
-                    aria-label={`Quitar alimento ${index + 1}`}
-                    className="flex min-h-11 min-w-11 items-center justify-center rounded-full text-neutral-500 hover:bg-danger-50 hover:text-danger-600"
-                  >
-                    <CloseIcon />
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, items: form.items.filter((_, i) => i !== index) })}
+                      aria-label={`Quitar alimento ${index + 1}`}
+                      className="flex h-9 w-9 sm:min-h-11 sm:min-w-11 items-center justify-center rounded-full text-neutral-500 hover:bg-danger-50 hover:text-danger-600"
+                    >
+                      <CloseIcon />
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -258,39 +263,39 @@ export default function MealsManager({
               className="flex flex-col gap-2 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm"
             >
               <div className="flex items-center justify-between gap-2">
-                <h3 className="flex items-center gap-2 font-semibold text-neutral-800">
-                  <span className="text-xl">{meal.icon}</span>
-                  {meal.name}
+                <h3 className="flex items-center gap-2 font-semibold text-neutral-800 truncate">
+                  <span className="text-xl shrink-0">{meal.icon}</span>
+                  <span className="truncate">{meal.name}</span>
                 </h3>
-                <span className="whitespace-nowrap text-sm font-semibold text-neutral-600">
+                <span className="shrink-0 whitespace-nowrap text-xs sm:text-sm font-semibold text-neutral-600">
                   {Math.round(templateCalories(meal))} kcal
                 </span>
               </div>
               <ul className="flex flex-col divide-y divide-neutral-100 text-sm">
                 {meal.items.map((item) => (
-                  <li key={item.id} className="flex justify-between gap-2 py-1">
-                    <span className="text-neutral-700">
+                  <li key={item.id} className="flex justify-between gap-2 py-1 text-xs sm:text-sm">
+                    <span className="text-neutral-700 truncate">
                       {item.food.icon} {item.food.name}
                       <span className="text-neutral-500"> · {formatQuantity(item.food, item.quantity)}</span>
                     </span>
-                    <span className="whitespace-nowrap text-neutral-500">
+                    <span className="shrink-0 whitespace-nowrap text-neutral-500">
                       {Math.round(entryCalories(item.food, item.quantity))} kcal
                     </span>
                   </li>
                 ))}
               </ul>
-              <div className="flex gap-3">
+              <div className="flex gap-3 pt-1 border-t border-neutral-50">
                 <button
                   type="button"
                   onClick={() => startEdit(meal)}
-                  className="p-2 text-xs font-medium text-brand-700 hover:underline"
+                  className="p-1 text-xs font-semibold text-brand-700 hover:underline"
                 >
                   Editar
                 </button>
                 <button
                   type="button"
                   onClick={() => handleDelete(meal)}
-                  className="p-2 text-xs font-medium text-danger-600 hover:underline"
+                  className="p-1 text-xs font-medium text-danger-600 hover:underline"
                 >
                   Eliminar
                 </button>

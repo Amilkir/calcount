@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { sumDayMacros } from "@/lib/macros";
+import { formatFreeDescription, sumDayMacros } from "@/lib/macros";
 import type { Food, FoodEntryWithFood, Profile } from "@/lib/types";
 import type { MealTemplateWithItems } from "@/lib/meals";
 import type { MealSlot } from "@/generated/prisma/enums";
@@ -224,7 +224,11 @@ export default function Dashboard({
           ? { ...base, mealTemplateId: payload.mealTemplateId, items: payload.items }
           : payload.kind === "batch"
             ? { ...base, foods: payload.foods }
-            : { ...base, freeDescription: payload.description, calories: payload.calories };
+            : {
+                ...base,
+                freeDescription: formatFreeDescription(payload.description, payload.macro),
+                calories: payload.calories,
+              };
 
     const res = await fetch("/api/entries", {
       method: "POST",

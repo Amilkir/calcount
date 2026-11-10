@@ -17,7 +17,7 @@ const MACRO_LABELS: Record<MacroKey, string> = {
   CARBOHIDRATOS: FOOD_TYPE_LABELS.CARBOHIDRATOS,
   PROTEINAS: FOOD_TYPE_LABELS.PROTEINAS,
   GRASAS: FOOD_TYPE_LABELS.GRASAS,
-  OTROS: "Otros",
+  OTROS: "Cheat Meal",
 };
 
 const SIZE = 160;
@@ -95,46 +95,56 @@ export default function MacroPieChart({ entries }: { entries: FoodEntryWithFood[
         </p>
       ) : (
         <div className="mt-3 flex flex-col items-center gap-4 sm:flex-row sm:justify-around">
-          <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} role="img" aria-label="Distribución de macronutrientes del día">
-            {drawnSlices.map((slice) => (
-              <path
-                key={slice.key}
-                d={slice.path}
-                style={{ fill: MACRO_COLORS[slice.key] }}
-                stroke="#fcfcfb"
-                strokeWidth={2}
-              />
-            ))}
-            {drawnSlices
-              .filter((slice) => slice.percent >= LABEL_MIN_PERCENT)
-              .map((slice) => (
-                <text
+          <div className="shrink-0">
+            <svg
+              width={SIZE}
+              height={SIZE}
+              viewBox={`0 0 ${SIZE} ${SIZE}`}
+              role="img"
+              aria-label="Distribución de macronutrientes del día"
+            >
+              {drawnSlices.map((slice) => (
+                <path
                   key={slice.key}
-                  x={slice.labelPoint.x}
-                  y={slice.labelPoint.y}
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  fontSize={12}
-                  fontWeight={600}
-                  fill="#ffffff"
-                  stroke="rgba(11,11,11,0.45)"
-                  strokeWidth={3}
-                  paintOrder="stroke"
-                >
-                  {Math.round(slice.percent)}%
-                </text>
-              ))}
-          </svg>
-
-          <ul className="flex flex-col gap-1.5 text-sm">
-            {slices.map((slice) => (
-              <li key={slice.key} className="flex items-center gap-2">
-                <span
-                  className="h-2.5 w-2.5 shrink-0 rounded-full"
-                  style={{ backgroundColor: MACRO_COLORS[slice.key] }}
+                  d={slice.path}
+                  style={{ fill: MACRO_COLORS[slice.key] }}
+                  stroke="#fcfcfb"
+                  strokeWidth={2}
                 />
-                <span className="text-neutral-700">{MACRO_LABELS[slice.key]}</span>
-                <span className="text-neutral-500">
+              ))}
+              {drawnSlices
+                .filter((slice) => slice.percent >= LABEL_MIN_PERCENT)
+                .map((slice) => (
+                  <text
+                    key={slice.key}
+                    x={slice.labelPoint.x}
+                    y={slice.labelPoint.y}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fontSize={12}
+                    fontWeight={600}
+                    fill="#ffffff"
+                    stroke="rgba(11,11,11,0.45)"
+                    strokeWidth={3}
+                    paintOrder="stroke"
+                  >
+                    {Math.round(slice.percent)}%
+                  </text>
+                ))}
+            </svg>
+          </div>
+
+          <ul className="flex w-full flex-col gap-2 text-xs sm:w-auto sm:text-sm">
+            {slices.map((slice) => (
+              <li key={slice.key} className="flex items-center justify-between gap-3 sm:justify-start">
+                <div className="flex items-center gap-2">
+                  <span
+                    className="h-2.5 w-2.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: MACRO_COLORS[slice.key] }}
+                  />
+                  <span className="font-medium text-neutral-700">{MACRO_LABELS[slice.key]}</span>
+                </div>
+                <span className="tabular-nums text-neutral-500">
                   {Math.round(slice.percent)}% · {Math.round(slice.calories)} kcal
                 </span>
               </li>

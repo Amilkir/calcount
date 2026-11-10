@@ -11,10 +11,10 @@
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "cf-typegen": "wrangler types --include-runtime=false --env-interface CloudflareEnv cloudflare-env.d.ts",
     "db:generate": "prisma generate",
-    "db:migrate:local": "wrangler d1 migrations apply calcount-db --local",
+    "db:migrate:local": "wrangler d1 migrations apply calcount-db --local --persist-to=./node_modules/.cache/wrangler/state",
     "db:migrate:remote": "wrangler d1 migrations apply calcount-db --remote",
     "db:seed:sql": "tsx prisma/seed.ts",
-    "db:seed:local": "wrangler d1 execute calcount-db --local --file=prisma/seed.sql",
+    "db:seed:local": "wrangler d1 execute calcount-db --local --persist-to=./node_modules/.cache/wrangler/state --file=prisma/seed.sql",
     "db:seed:remote": "wrangler d1 execute calcount-db --remote --file=prisma/seed.sql"
   },
   "dependencies": {

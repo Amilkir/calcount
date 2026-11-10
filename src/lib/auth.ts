@@ -15,7 +15,14 @@ async function sendEmail(
   action: string,
   url: string
 ) {
-  const resend = new Resend(env.RESEND_API_KEY);
+  const apiKey = env.RESEND_API_KEY || process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.warn(
+      `⚠️ [Resend]: Falta configurar RESEND_API_KEY en .dev.vars o .env.local. El correo no fue enviado a ${to}.`
+    );
+    return;
+  }
+  const resend = new Resend(apiKey);
   const { error } = await resend.emails.send({
     from: env.EMAIL_FROM ?? DEFAULT_FROM,
     to,
@@ -37,14 +44,26 @@ async function sendEmail(
 }
 
 function createAuth(env: CloudflareEnv) {
+  const isDev = process.env.NODE_ENV !== "production";
+  const baseURL = isDev ? "http://localhost:3000" : env.BETTER_AUTH_URL;
+  const trustedOrigins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    env.BETTER_AUTH_URL,
+  ].filter(Boolean) as string[];
+
   return betterAuth({
     database: prismaAdapter(getPrisma(), { provider: "sqlite" }),
-    secret: env.BETTER_AUTH_SECRET,
-    baseURL: env.BETTER_AUTH_URL,
+    secret: env.BETTER_AUTH_SECRET ?? (isDev ? "dev-secret-calcount-key-32-chars-minimum" : undefined),
+    baseURL,
+    trustedOrigins,
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: true,
       sendResetPassword: async ({ user, url }) => {
+        if (isDev) {
+          console.log(`\n🔑 [DEV AUTH] Reset password link for ${user.email}:\n${url}\n`);
+        }
         await sendEmail(
           env,
           user.email,
@@ -61,6 +80,9 @@ function createAuth(env: CloudflareEnv) {
       sendOnSignIn: true,
       autoSignInAfterVerification: true,
       sendVerificationEmail: async ({ user, url }) => {
+        if (isDev) {
+          console.log(`\n✉️ [DEV AUTH] Verification link for ${user.email}:\n${url}\n`);
+        }
         await sendEmail(
           env,
           user.email,
@@ -72,12 +94,16 @@ function createAuth(env: CloudflareEnv) {
         );
       },
     },
-    socialProviders: {
-      google: {
-        clientId: env.GOOGLE_CLIENT_ID,
-        clientSecret: env.GOOGLE_CLIENT_SECRET,
-      },
-    },
+    ...(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
+      ? {
+          socialProviders: {
+            google: {
+              clientId: env.GOOGLE_CLIENT_ID,
+              clientSecret: env.GOOGLE_CLIENT_SECRET,
+            },
+          },
+        }
+      : {}),
   });
 }
 

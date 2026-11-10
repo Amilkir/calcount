@@ -46,12 +46,12 @@ export default function UserMenu({ name, email }: { name: string; email: string 
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="flex items-center gap-2 rounded-full border border-neutral-300 py-1 pl-1 pr-3 text-sm font-semibold text-neutral-700 transition-colors hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700"
+        className="flex items-center gap-1.5 sm:gap-2 rounded-full border border-neutral-300 py-1 pl-1 pr-2 sm:pr-3 text-xs sm:text-sm font-semibold text-neutral-700 transition-colors hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700"
       >
         <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-100 text-xs font-bold uppercase text-brand-700">
           {displayName.charAt(0)}
         </span>
-        <span className="max-w-28 truncate sm:max-w-40">{displayName}</span>
+        <span className="hidden sm:inline-block max-w-28 truncate sm:max-w-40">{displayName}</span>
         <span aria-hidden className={`text-[10px] transition-transform ${open ? "rotate-180" : ""}`}>
           ▼
         </span>

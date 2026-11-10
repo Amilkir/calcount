@@ -7,21 +7,53 @@ import AutofillPanel from "./AutofillPanel";
 import { useMemo, useState } from "react";
 import type { Food } from "@/lib/types";
 import { SERVING_UNIT_LABELS } from "@/lib/labels";
-import { foodMacrosPerServing } from "@/lib/macros";
-
-// La API acepta hasta 20 alimentos por envío.
-const MAX_PLATE = 20;
+import { foodMacrosPerServing, type PredominantMacro } from "@/lib/macros";
 import {
   entryCalories,
   templateCalories,
   type MealTemplateWithItems,
 } from "@/lib/meals";
 
+// La API acepta hasta 20 alimentos por envío.
+const MAX_PLATE = 20;
+
 export type NewEntryPayload =
   | { kind: "food"; foodId: string; quantity: number }
-  | { kind: "free"; description: string; calories: number }
+  | { kind: "free"; description: string; calories: number; macro: PredominantMacro }
   | { kind: "meal"; mealTemplateId: string; items: { itemId: string; quantity: number }[] }
   | { kind: "batch"; foods: { foodId: string; quantity: number }[] };
+
+const FREE_MACRO_OPTIONS: {
+  key: PredominantMacro;
+  label: string;
+  icon: string;
+  desc: string;
+}[] = [
+  {
+    key: "CARBOHIDRATOS",
+    label: "Carbohidratos",
+    icon: "🍞",
+    desc: "Se calcularán gramos de carbohidratos estimados (4 kcal/g).",
+  },
+  {
+    key: "PROTEINAS",
+    label: "Proteínas",
+    icon: "🥩",
+    desc: "Se calcularán gramos de proteína estimados (4 kcal/g).",
+  },
+  {
+    key: "GRASAS",
+    label: "Grasas",
+    icon: "🥑",
+    desc: "Se calcularán gramos de grasa estimados (9 kcal/g).",
+  },
+  {
+    key: "CHEAT_MEAL",
+    label: "Cheat Meal",
+    icon: "🍔",
+    desc: "Comida permitida: se suma a las calorías del día, sin asignarse a un macro específico.",
+  },
+];
 
 export default function AddEntryModal({
   foods,
@@ -45,6 +77,7 @@ export default function AddEntryModal({
   const [plate, setPlate] = useState<{ foodId: string; quantity: number | null }[]>([]);
   const [description, setDescription] = useState("");
   const [freeCalories, setFreeCalories] = useState<number | null>(null);
+  const [freeMacro, setFreeMacro] = useState<PredominantMacro>("CHEAT_MEAL");
   const [submitting, setSubmitting] = useState(false);
 
   const filtered = useMemo(() => {
@@ -71,6 +104,7 @@ export default function AddEntryModal({
       };
     })
     .filter((r) => r !== null);
+
   const plateTotals = plateRows.reduce(
     (t, r) => ({
       calories: t.calories + r.calories,
@@ -80,6 +114,7 @@ export default function AddEntryModal({
     }),
     { calories: 0, protein: 0, carbs: 0, fat: 0 }
   );
+
   const plateInvalid =
     plateRows.length === 0 || plateRows.some((r) => r.quantity == null || r.quantity <= 0);
 
@@ -138,37 +173,40 @@ export default function AddEntryModal({
     e.preventDefault();
     if (freeInvalid || freeCalories == null) return;
     setSubmitting(true);
-    await onSubmit({ kind: "free", description: description.trim(), calories: freeCalories });
+    await onSubmit({
+      kind: "free",
+      description: description.trim(),
+      calories: freeCalories,
+      macro: freeMacro,
+    });
     setSubmitting(false);
   }
 
   return (
-    // El borde superior queda fijo y el modal crece hacia abajo según la pestaña, así las
-    // pestañas no se mueven bajo el cursor. Solo se cierra con la X o al agregar.
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 px-4 pt-[6vh] pb-4">
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 px-3 sm:px-4 pt-[4vh] sm:pt-[6vh] pb-3 sm:pb-4">
       <div
         role="dialog"
         aria-modal="true"
         aria-label={`Agregar a ${mealLabel}`}
-        className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-lg"
+        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-4 sm:p-6 shadow-lg"
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Agregar a {mealLabel}</h2>
+          <h2 className="text-base sm:text-lg font-semibold">Agregar a {mealLabel}</h2>
           <button
             type="button"
             onClick={onClose}
-            className="text-neutral-400 hover:text-neutral-600"
+            className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600"
             aria-label="Cerrar"
           >
             <CloseIcon />
           </button>
         </div>
 
-        <div className="mt-4 flex gap-1 rounded-full bg-neutral-100 p-1 text-sm font-semibold">
+        <div className="mt-4 flex gap-1 rounded-full bg-neutral-100 p-1 text-xs sm:text-sm font-semibold">
           <button
             type="button"
             onClick={() => setMode("food")}
-            className={`flex-1 rounded-full py-1.5 ${
+            className={`flex-1 rounded-full py-1.5 transition-colors ${
               mode === "food" ? "bg-white shadow-sm text-brand-700" : "text-neutral-500"
             }`}
           >
@@ -177,7 +215,7 @@ export default function AddEntryModal({
           <button
             type="button"
             onClick={() => setMode("meal")}
-            className={`flex-1 rounded-full py-1.5 ${
+            className={`flex-1 rounded-full py-1.5 transition-colors ${
               mode === "meal" ? "bg-white shadow-sm text-brand-700" : "text-neutral-500"
             }`}
           >
@@ -186,7 +224,7 @@ export default function AddEntryModal({
           <button
             type="button"
             onClick={() => setMode("autofill")}
-            className={`flex-1 rounded-full py-1.5 ${
+            className={`flex-1 rounded-full py-1.5 transition-colors ${
               mode === "autofill" ? "bg-white shadow-sm text-brand-700" : "text-neutral-500"
             }`}
           >
@@ -195,7 +233,7 @@ export default function AddEntryModal({
           <button
             type="button"
             onClick={() => setMode("free")}
-            className={`flex-1 rounded-full py-1.5 ${
+            className={`flex-1 rounded-full py-1.5 transition-colors ${
               mode === "free" ? "bg-white shadow-sm text-brand-700" : "text-neutral-500"
             }`}
           >
@@ -228,14 +266,14 @@ export default function AddEntryModal({
                   onClick={() => selectMeal(meal)}
                   className="flex w-full items-center gap-3 border-b border-neutral-100 px-3 py-2 text-left last:border-none hover:bg-neutral-50"
                 >
-                  <span className="text-xl">{meal.icon}</span>
+                  <span className="text-xl shrink-0">{meal.icon}</span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-medium text-neutral-800">{meal.name}</span>
                     <span className="block truncate text-xs text-neutral-500">
                       {meal.items.map((i) => i.food.name).join(", ")}
                     </span>
                   </span>
-                  <span className="whitespace-nowrap text-xs text-neutral-500">
+                  <span className="shrink-0 whitespace-nowrap text-xs text-neutral-500">
                     {Math.round(templateCalories(meal))} kcal
                   </span>
                 </button>
@@ -280,7 +318,9 @@ export default function AddEntryModal({
                         className="h-4 w-4 shrink-0 accent-brand-600"
                       />
                       <span
-                        className={`min-w-0 flex-1 truncate ${included ? "text-neutral-700" : "text-neutral-400 line-through"}`}
+                        className={`min-w-0 flex-1 truncate ${
+                          included ? "text-neutral-700" : "text-neutral-400 line-through"
+                        }`}
                       >
                         {item.food.icon} {item.food.name}
                       </span>
@@ -297,13 +337,13 @@ export default function AddEntryModal({
                           }))
                         }
                         aria-label={`Cantidad de ${item.food.name}`}
-                        className="w-20 rounded-lg border border-neutral-300 px-2 py-1 disabled:opacity-50"
+                        className="w-16 sm:w-20 rounded-lg border border-neutral-300 px-2 py-1 disabled:opacity-50 text-sm"
                         required={included}
                       />
-                      <span className="w-4 text-neutral-500">
+                      <span className="w-4 text-xs sm:text-sm text-neutral-500">
                         {item.food.servingUnit === "UNIT" ? "u" : "g"}
                       </span>
-                      <span className="w-16 whitespace-nowrap text-right text-neutral-500">
+                      <span className="w-14 sm:w-16 whitespace-nowrap text-right text-xs sm:text-sm text-neutral-500">
                         {included && qty ? `${Math.round(entryCalories(item.food, qty))} kcal` : "–"}
                       </span>
                     </li>
@@ -319,7 +359,9 @@ export default function AddEntryModal({
               <button type="submit" disabled={submitting || mealInvalid} className="btn-primary">
                 {submitting
                   ? "Agregando..."
-                  : `Agregar ${mealSelection.length} ${mealSelection.length === 1 ? "alimento" : "alimentos"}`}
+                  : `Agregar ${mealSelection.length} ${
+                      mealSelection.length === 1 ? "alimento" : "alimentos"
+                    }`}
               </button>
             </form>
           )
@@ -332,7 +374,7 @@ export default function AddEntryModal({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               aria-label="Buscar alimento"
-              className="rounded-lg border border-neutral-300 px-3 py-2"
+              className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
             />
             {/* Tocar un alimento lo suma al plato; los que ya están se marcan. */}
             <div
@@ -352,19 +394,21 @@ export default function AddEntryModal({
                     onClick={() => addToPlate(food)}
                     disabled={inPlate}
                     aria-label={inPlate ? `${food.name} (ya en el plato)` : `Sumar ${food.name}`}
-                    className={`flex w-full items-center gap-3 border-b border-neutral-100 px-3 py-2 text-left last:border-none ${
+                    className={`flex w-full items-center gap-2 sm:gap-3 border-b border-neutral-100 px-3 py-2 text-left last:border-none ${
                       inPlate ? "cursor-default bg-lagoon-50" : "hover:bg-neutral-50"
                     }`}
                   >
-                    <span className="text-xl">{food.icon}</span>
-                    <span className="flex-1">
-                      <span className="block text-sm font-medium text-neutral-800">{food.name}</span>
-                      <span className="block text-xs text-neutral-400">{food.category}</span>
+                    <span className="text-xl shrink-0">{food.icon}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium text-neutral-800">
+                        {food.name}
+                      </span>
+                      <span className="block truncate text-xs text-neutral-400">{food.category}</span>
                     </span>
                     {inPlate ? (
                       <CheckIcon className="shrink-0 text-lagoon-700" />
                     ) : (
-                      <span className="whitespace-nowrap text-xs text-neutral-500">
+                      <span className="shrink-0 whitespace-nowrap text-xs text-neutral-500">
                         {food.calories} kcal {SERVING_UNIT_LABELS[food.servingUnit]}
                       </span>
                     )}
@@ -399,12 +443,12 @@ export default function AddEntryModal({
                           );
                         }}
                         aria-label={`Cantidad de ${row.food.name}`}
-                        className="w-20 rounded-lg border border-neutral-300 px-2 py-1"
+                        className="w-16 sm:w-20 rounded-lg border border-neutral-300 px-2 py-1 text-sm"
                       />
-                      <span className="w-4 text-neutral-500">
+                      <span className="w-4 text-xs sm:text-sm text-neutral-500">
                         {row.food.servingUnit === "UNIT" ? "u" : "g"}
                       </span>
-                      <span className="w-16 whitespace-nowrap text-right tabular-nums text-neutral-500">
+                      <span className="w-14 sm:w-16 whitespace-nowrap text-right tabular-nums text-xs sm:text-sm text-neutral-500">
                         {row.quantity ? `${Math.round(row.calories)} kcal` : "–"}
                       </span>
                       <button
@@ -418,7 +462,7 @@ export default function AddEntryModal({
                     </li>
                   ))}
                 </ul>
-                <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-t border-neutral-200 bg-neutral-50 px-3 py-2 text-sm">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-t border-neutral-200 bg-neutral-50 px-3 py-2 text-xs sm:text-sm">
                   <span className="font-semibold text-neutral-900">
                     Total {Math.round(plateTotals.calories)} kcal
                   </span>
@@ -448,7 +492,7 @@ export default function AddEntryModal({
                 placeholder="Ej. Pizza, pollo frito, galletas..."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="rounded-lg border border-neutral-300 px-3 py-2"
+                className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
                 required
               />
             </label>
@@ -463,10 +507,39 @@ export default function AddEntryModal({
                 onChange={(e) =>
                   setFreeCalories(e.target.value === "" ? null : Number(e.target.value))
                 }
-                className="rounded-lg border border-neutral-300 px-3 py-2"
+                className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
                 required
               />
             </label>
+
+            <div className="flex flex-col gap-2">
+              <span className="text-sm font-medium text-neutral-700">
+                Macronutriente predominante / Tipo
+              </span>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {FREE_MACRO_OPTIONS.map((item) => {
+                  const isSelected = freeMacro === item.key;
+                  return (
+                    <button
+                      key={item.key}
+                      type="button"
+                      onClick={() => setFreeMacro(item.key)}
+                      className={`flex flex-col items-center justify-center rounded-xl border p-2 text-center text-xs font-semibold transition-all ${
+                        isSelected
+                          ? "border-brand-600 bg-brand-50 text-brand-700 shadow-sm"
+                          : "border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50"
+                      }`}
+                    >
+                      <span className="text-lg">{item.icon}</span>
+                      <span className="mt-1 leading-tight">{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-neutral-500">
+                {FREE_MACRO_OPTIONS.find((o) => o.key === freeMacro)?.desc}
+              </p>
+            </div>
 
             <button
               type="submit"

@@ -31,9 +31,9 @@ export default function TargetsPanel({
           const percent = goal > 0 ? Math.min(100, (consumed / goal) * 100) : 0;
           return (
             <div key={bar.key}>
-              <div className="flex justify-between text-sm">
-                <span className="text-neutral-700">{bar.label}</span>
-                <span className="text-neutral-500">
+              <div className="flex justify-between text-xs sm:text-sm">
+                <span className="font-medium text-neutral-700">{bar.label}</span>
+                <span className="tabular-nums text-neutral-500">
                   {consumed} / {goal} g
                 </span>
               </div>
@@ -52,28 +52,28 @@ export default function TargetsPanel({
         <p className="text-xs text-neutral-500">
           {day.estimated && "Algunos alimentos no tienen macros guardados y se estimaron por su tipo. "}
           {day.otherKcal > 0 &&
-            `${Math.round(day.otherKcal)} kcal de registros libres no se cuentan en los macros.`}
+            `${Math.round(day.otherKcal)} kcal de Cheat Meal no se cuentan en los macros.`}
         </p>
       )}
 
-      <dl className="grid grid-cols-2 gap-3 border-t border-neutral-100 pt-3 text-sm sm:grid-cols-4">
-        <div>
+      <dl className="grid grid-cols-2 gap-3 border-t border-neutral-100 pt-3 text-xs sm:grid-cols-4 sm:text-sm">
+        <div className="min-w-0">
           <dt className="text-xs text-neutral-500">Metabolismo basal</dt>
           <dd className="font-semibold text-neutral-800">{targets.bmr} kcal</dd>
         </div>
-        <div>
+        <div className="min-w-0">
           <dt className="text-xs text-neutral-500">
             Mantenimiento{targets.maintenanceSource === "adaptive" ? " (ajustado)" : ""}
           </dt>
           <dd className="font-semibold text-neutral-800">{targets.maintenanceCalories} kcal</dd>
         </div>
-        <div>
+        <div className="min-w-0">
           <dt className="text-xs text-neutral-500">Agua recomendada</dt>
           <dd className="font-semibold text-neutral-800">
             {(targets.waterMl / 1000).toFixed(2)} L
           </dd>
         </div>
-        <div>
+        <div className="min-w-0">
           <dt className="text-xs text-neutral-500">Ritmo estimado</dt>
           <dd className="font-semibold text-neutral-800">
             {targets.weeklyChangeKg > 0 ? "+" : ""}
@@ -83,7 +83,7 @@ export default function TargetsPanel({
       </dl>
 
       {targets.weeksToTarget != null && targets.weeksToTarget > 0 && (
-        <p className="text-sm text-neutral-600">
+        <p className="text-xs sm:text-sm text-neutral-600">
           Peso objetivo en ~{targets.weeksToTarget} semanas a este ritmo.
         </p>
       )}
@@ -91,7 +91,7 @@ export default function TargetsPanel({
       {targets.warnings.map((w) => (
         <p key={w} className="flex items-start gap-1.5 rounded-lg bg-sun-50 p-2 text-xs text-sun-800">
           <AlertIcon size={14} className="mt-px shrink-0" />
-          {w}
+          <span>{w}</span>
         </p>
       ))}
       {targets.notes.map((n) => (
