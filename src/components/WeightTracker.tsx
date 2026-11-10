@@ -104,14 +104,14 @@ export default function WeightTracker({ profileId }: { profileId: string }) {
         Registro de peso
       </p>
 
-      <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-3">
+      <form onSubmit={handleAdd} className="grid grid-cols-1 gap-3 sm:flex sm:flex-wrap sm:items-end">
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium text-neutral-700">Fecha</span>
           <input
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="rounded-lg border border-neutral-300 px-3 py-2"
+            className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
             required
           />
         </label>
@@ -124,14 +124,15 @@ export default function WeightTracker({ profileId }: { profileId: string }) {
             max={400}
             value={weight}
             onChange={(e) => setWeight(e.target.value)}
-            className="w-28 rounded-lg border border-neutral-300 px-3 py-2"
+            className="w-full sm:w-28 rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+            placeholder="Ej. 74.5"
             required
           />
         </label>
         <button
           type="submit"
           disabled={saving}
-          className="btn-primary"
+          className="btn-primary w-full sm:w-auto"
         >
           {saving ? "Guardando..." : "Registrar"}
         </button>
@@ -143,9 +144,9 @@ export default function WeightTracker({ profileId }: { profileId: string }) {
       {logs.length > 0 && (
         <ul className="divide-y divide-neutral-100 text-sm">
           {logs.slice(0, 6).map((log) => (
-            <li key={log.id} className="flex items-center justify-between py-1.5">
-              <span className="capitalize text-neutral-600">{formatDateDisplay(log.date)}</span>
-              <span className="flex items-center gap-3">
+            <li key={log.id} className="flex items-center justify-between py-1.5 text-xs sm:text-sm">
+              <span className="capitalize text-neutral-600 truncate mr-2">{formatDateDisplay(log.date)}</span>
+              <span className="flex items-center gap-3 shrink-0">
                 <span className="font-semibold text-neutral-800">{log.weightKg} kg</span>
                 <button
                   onClick={() => handleDelete(log.date)}

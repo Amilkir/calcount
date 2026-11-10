@@ -42,7 +42,7 @@ export const metadata: Metadata = {
 };
 
 const NAV_LINK =
-  "rounded-full px-3 py-1.5 font-semibold text-neutral-600 transition-colors hover:bg-brand-50 hover:text-brand-700";
+  "rounded-full px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-semibold text-neutral-600 transition-colors hover:bg-brand-50 hover:text-brand-700";
 
 export default async function RootLayout({
   children,
@@ -58,18 +58,18 @@ export default async function RootLayout({
     >
       <body className="min-h-full flex flex-col text-neutral-900">
         <header className="sticky top-0 z-20 border-b border-neutral-200/70 bg-white/80 backdrop-blur">
-          <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-3">
-            <Link href="/" className="flex items-center gap-2.5">
-              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-brand-400 to-brand-600 text-white shadow-md shadow-brand-600/30">
-                <FlameIcon size={20} />
+          <div className="mx-auto flex max-w-4xl items-center justify-between gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3">
+            <Link href="/" className="flex items-center gap-2">
+              <span className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-lg bg-gradient-to-br from-brand-400 to-brand-600 text-white shadow-md shadow-brand-600/30">
+                <FlameIcon size={18} className="sm:size-5" />
               </span>
-              <span className="font-display text-xl font-semibold text-neutral-800">
+              <span className="font-display text-lg sm:text-xl font-semibold text-neutral-800">
                 Calcount
               </span>
             </Link>
             {session ? (
               <div className="flex items-center gap-1 sm:gap-3">
-                <nav className="flex items-center gap-0.5 text-sm sm:gap-1">
+                <nav className="flex items-center gap-0.5 sm:gap-1">
                   <Link href="/" className={NAV_LINK}>
                     Hoy
                   </Link>
@@ -83,21 +83,21 @@ export default async function RootLayout({
                 <UserMenu name={session.user.name} email={session.user.email} />
               </div>
             ) : (
-              <nav className="flex items-center gap-1 text-sm sm:gap-2">
+              <nav className="flex items-center gap-1 text-xs sm:text-sm sm:gap-2">
                 <Link href="/faq" className={`${NAV_LINK} hidden sm:inline-flex`}>
                   Cómo calculamos
                 </Link>
                 <Link href="/login" className={NAV_LINK}>
                   Iniciar sesión
                 </Link>
-                <Link href="/signup" className="btn-primary px-4 py-1.5">
+                <Link href="/signup" className="btn-primary px-3 sm:px-4 py-1 sm:py-1.5 text-xs sm:text-sm">
                   Registrarse
                 </Link>
               </nav>
             )}
           </div>
         </header>
-        <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-6">{children}</main>
+        <main className="mx-auto w-full max-w-4xl flex-1 px-3 sm:px-4 py-4 sm:py-6">{children}</main>
       </body>
     </html>
   );

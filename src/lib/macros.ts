@@ -1,5 +1,30 @@
 import type { FoodEntryWithFood } from "./types";
 
+export type PredominantMacro = "CARBOHIDRATOS" | "PROTEINAS" | "GRASAS" | "CHEAT_MEAL";
+
+export function formatFreeDescription(description: string, macro: PredominantMacro): string {
+  const clean = description.replace(/\s*\[(PROTEINAS|CARBOHIDRATOS|GRASAS|CHEAT_MEAL)\]\s*$/i, "").trim();
+  return `${clean} [${macro}]`;
+}
+
+export function parseFreeDescription(raw: string | null | undefined): {
+  description: string;
+  macro: PredominantMacro;
+} {
+  if (!raw) return { description: "", macro: "CHEAT_MEAL" };
+  const match = raw.match(/^(.*?)(?:\s*\[(PROTEINAS|CARBOHIDRATOS|GRASAS|CHEAT_MEAL)\])?$/i);
+  if (!match) return { description: raw.trim(), macro: "CHEAT_MEAL" };
+  const description = (match[1] ?? "").trim() || raw.trim();
+  const macroTag = match[2]?.toUpperCase() as PredominantMacro | undefined;
+  return {
+    description,
+    macro:
+      macroTag && ["PROTEINAS", "CARBOHIDRATOS", "GRASAS", "CHEAT_MEAL"].includes(macroTag)
+        ? macroTag
+        : "CHEAT_MEAL",
+  };
+}
+
 export interface MacroGrams {
   protein: number;
   carbs: number;
@@ -7,7 +32,7 @@ export interface MacroGrams {
 }
 
 export interface DayMacros extends MacroGrams {
-  /** Calorías de registros sin alimento asociado (no se pueden repartir en macros). */
+  /** Calorías de Cheat Meal / registros libres sin macro predominante asignado. */
   otherKcal: number;
   /** Gramos que provienen de una estimación por tipo de alimento, no de datos reales. */
   estimated: boolean;
@@ -21,7 +46,20 @@ export function entryMacros(entry: FoodEntryWithFood): MacroGrams & {
   kind: "exact" | "estimated" | "other";
 } {
   const food = entry.food;
-  if (!food) return { protein: 0, carbs: 0, fat: 0, kind: "other" };
+  if (!food) {
+    const { macro } = parseFreeDescription(entry.freeDescription);
+    const kcal = entry.calories;
+    if (macro === "PROTEINAS") {
+      return { protein: kcal / 4, carbs: 0, fat: 0, kind: "estimated" };
+    }
+    if (macro === "CARBOHIDRATOS") {
+      return { protein: 0, carbs: kcal / 4, fat: 0, kind: "estimated" };
+    }
+    if (macro === "GRASAS") {
+      return { protein: 0, carbs: 0, fat: kcal / 9, kind: "estimated" };
+    }
+    return { protein: 0, carbs: 0, fat: 0, kind: "other" };
+  }
 
   if (hasMacros(food)) {
     const factor = food.calories > 0 ? entry.calories / food.calories : 0;

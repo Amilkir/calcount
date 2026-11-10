@@ -20,7 +20,7 @@ const foods = [
   { name: "Carne picada de res cocida", category: "Carnes", icon: "🥩", servingUnit: "GRAMS_100", foodType: "PROTEINAS", calories: 254, protein: 26, carbs: 0, fat: 17 },
   { name: "Fajitas", category: "Cereales y granos", icon: "🫓", servingUnit: "UNIT", foodType: "CARBOHIDRATOS", calories: 79, protein: 2.2, carbs: 13, fat: 2 },
   // id fijo: se renombró desde "Proteína" y los registros existentes apuntan a este id.
-  { id: "global-proteina", name: "Proteína en polvo (suero lácteo)", category: "Suplementos", icon: "🥤", servingUnit: "UNIT", foodType: "PROTEINAS", calories: 134, protein: 25, carbs: 4, fat: 2 },
+  { id: "global-proteina", name: "Proteína en polvo (suero lácteo)", category: "Suplementos", icon: "🥤", servingUnit: "UNIT", foodType: "PROTEINAS", calories: 115, protein: 24, carbs: 3, fat: 1 },
   { name: "Huevo", category: "Huevos y lácteos", icon: "🥚", servingUnit: "UNIT", foodType: "PROTEINAS", calories: 78, protein: 6.3, carbs: 0.6, fat: 5.3 },
   { name: "Leche entera", category: "Huevos y lácteos", icon: "🥛", servingUnit: "GRAMS_100", foodType: "PROTEINAS", calories: 61, protein: 3.2, carbs: 4.8, fat: 3.3 },
   { name: "Yogurt natural entero", category: "Huevos y lácteos", icon: "🥛", servingUnit: "GRAMS_100", foodType: "PROTEINAS", calories: 61, protein: 3.5, carbs: 4.7, fat: 3.3 },
