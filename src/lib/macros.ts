@@ -45,6 +45,16 @@ const hasMacros = (food: NonNullable<FoodEntryWithFood["food"]>) =>
 export function entryMacros(entry: FoodEntryWithFood): MacroGrams & {
   kind: "exact" | "estimated" | "other";
 } {
+  // Porciones de una comida porcionable: los macros quedaron guardados al cargarla.
+  if (entry.portions != null) {
+    return {
+      protein: entry.protein ?? 0,
+      carbs: entry.carbs ?? 0,
+      fat: entry.fat ?? 0,
+      kind: "exact",
+    };
+  }
+
   const food = entry.food;
   if (!food) {
     const { macro } = parseFreeDescription(entry.freeDescription);

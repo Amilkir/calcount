@@ -38,6 +38,22 @@ import {
 } from "@/lib/labels";
 import { calculateCalorieTargets, targetForGoal } from "@/lib/calories";
 import { SUPPLEMENTS, SUPPLEMENT_LABELS, type Supplement } from "@/lib/supplements";
+import SportIcon from "./SportIcon";
+import {
+  DEFAULT_SPORT_MINUTES,
+  MAX_SPORTS,
+  MAX_SPORT_MINUTES,
+  SPORTS,
+  SPORT_LABELS,
+  sportCreditKcal,
+  type Sport,
+  type SportPlan,
+} from "@/lib/sports";
+
+/** Fila de deporte del formulario; "" es una fila nueva sin deporte elegido todavía. */
+type SportRow = Omit<SportPlan, "sport"> & { sport: Sport | "" };
+
+const newSportRow = (): SportRow => ({ sport: "", minutes: DEFAULT_SPORT_MINUTES, perWeek: 1 });
 import {
   DEFAULT_PROFILE_VALUES,
   type ProfileFormValues,
@@ -215,6 +231,22 @@ export default function ProfileForm({
     );
   }
 
+  const [playsSports, setPlaysSports] = useState(() => (initialValues?.sports.length ?? 0) > 0);
+  const [sportRows, setSportRowsState] = useState<SportRow[]>(() => initialValues?.sports ?? []);
+  const pendingSport = sportRows.some((r) => r.sport === "");
+
+  function setSportRows(rows: SportRow[]) {
+    setSportRowsState(rows);
+    update(
+      "sports",
+      rows.filter((r): r is SportPlan => r.sport !== "")
+    );
+  }
+
+  function updateSport(index: number, change: Partial<SportRow>) {
+    setSportRows(sportRows.map((row, i) => (i === index ? { ...row, ...change } : row)));
+  }
+
   const targets = useMemo(() => calculateCalorieTargets(values), [values]);
   const isEdit = mode === "edit";
   const dirty = !isEdit || JSON.stringify(values) !== JSON.stringify(initialValues);
@@ -245,6 +277,24 @@ export default function ProfileForm({
     }
     if (pendingSupplement) {
       setError("Elige un suplemento en cada fila o quita las que estén vacías.");
+      return;
+    }
+    if (pendingSport) {
+      setError("Elige un deporte en cada fila o quita las que estén vacías.");
+      return;
+    }
+    if (
+      sportRows.some(
+        (s) =>
+          !Number.isInteger(s.minutes) ||
+          s.minutes < 1 ||
+          s.minutes > MAX_SPORT_MINUTES ||
+          !Number.isInteger(s.perWeek) ||
+          s.perWeek < 1 ||
+          s.perWeek > 14
+      )
+    ) {
+      setError("Indica los minutos y las veces por semana de cada deporte.");
       return;
     }
 
@@ -459,6 +509,127 @@ export default function ProfileForm({
               step={5}
             />
           </>
+        )}
+      </Section>
+
+      <Section
+        title="Deportes"
+        description="Deportes intensos que practicas aparte de tu entrenamiento regular. No se suman a tu meta base: en «Hoy» marcas si jugaste y ese día se suma lo que gastaste."
+      >
+        <CheckboxField
+          label="Practico algún deporte (fútbol, pádel, running…)"
+          checked={playsSports}
+          onChange={(checked) => {
+            setPlaysSports(checked);
+            setSportRows(checked ? [newSportRow()] : []);
+          }}
+        />
+        {playsSports && (
+          <div className="flex flex-col gap-2 sm:col-span-2">
+            {sportRows.map((row, index) => (
+              <div
+                key={index}
+                className="flex flex-col gap-2 rounded-lg border border-neutral-100 p-2 sm:flex-row sm:items-center sm:border-none sm:p-0"
+              >
+                <div className="flex items-center gap-2 sm:flex-1">
+                  {row.sport ? (
+                    <SportIcon sport={row.sport} size={20} />
+                  ) : (
+                    <span className="h-[34px] w-[34px] shrink-0 rounded-lg border border-dashed border-neutral-300" />
+                  )}
+                  <select
+                    value={row.sport}
+                    aria-label={`Deporte ${index + 1}`}
+                    onChange={(e) => updateSport(index, { sport: e.target.value as Sport })}
+                    className={`${INPUT_CLASS} min-w-0 flex-1 ${row.sport === "" ? "text-neutral-500" : ""}`}
+                    required
+                  >
+                    <option value="" disabled>
+                      Seleccione…
+                    </option>
+                    {SPORTS.filter(
+                      (s) => s === row.sport || !sportRows.some((r) => r.sport === s)
+                    ).map((s) => (
+                      <option key={s} value={s}>
+                        {SPORT_LABELS[s]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="flex items-center gap-1 text-sm text-neutral-600">
+                    <input
+                      type="number"
+                      min={1}
+                      max={MAX_SPORT_MINUTES}
+                      step={1}
+                      value={row.minutes || ""}
+                      onChange={(e) => updateSport(index, { minutes: Number(e.target.value) })}
+                      aria-label={`Minutos por sesión del deporte ${index + 1}`}
+                      className={`${INPUT_CLASS} w-20`}
+                      required
+                    />
+                    min
+                  </label>
+                  <label className="flex items-center gap-1 text-sm text-neutral-600">
+                    <input
+                      type="number"
+                      min={1}
+                      max={14}
+                      step={1}
+                      value={row.perWeek || ""}
+                      onChange={(e) => updateSport(index, { perWeek: Number(e.target.value) })}
+                      aria-label={`Veces por semana del deporte ${index + 1}`}
+                      className={`${INPUT_CLASS} w-16`}
+                      required
+                    />
+                    ×/sem
+                  </label>
+                  <span className="ml-auto whitespace-nowrap text-xs text-neutral-500 sm:w-24 sm:text-right">
+                    {row.sport !== "" &&
+                      row.minutes > 0 &&
+                      `+${sportCreditKcal(row.sport, row.minutes, values.weightKg, values.goal)} kcal`}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = sportRows.filter((_, i) => i !== index);
+                      setSportRows(next);
+                      if (next.length === 0) setPlaysSports(false);
+                    }}
+                    aria-label={`Quitar deporte ${index + 1}`}
+                    className="flex min-h-11 min-w-11 items-center justify-center rounded-full text-neutral-500 hover:bg-danger-50 hover:text-danger-600"
+                  >
+                    <CloseIcon />
+                  </button>
+                </div>
+              </div>
+            ))}
+            <p className="text-xs text-neutral-500">
+              Las kcal son lo que se suma a tu meta el día que lo marcas
+              {values.goal === "DEFICIT"
+                ? " (el 65 % del gasto estimado, para no comerte el déficit)"
+                : values.goal === "MAINTENANCE"
+                  ? " (el 95 % del gasto estimado)"
+                  : ""}
+              .
+            </p>
+            {pendingSport && (
+              <p className="text-xs text-sun-700">
+                Elige un deporte en cada fila (o quítala) para poder guardar.
+              </p>
+            )}
+            {sportRows.length < MAX_SPORTS && (
+              <button
+                type="button"
+                onClick={() => setSportRows([...sportRows, newSportRow()])}
+                disabled={pendingSport}
+                className="btn-secondary self-start"
+              >
+                + Añadir deporte
+              </button>
+            )}
+          </div>
         )}
       </Section>
 
@@ -757,7 +928,7 @@ export default function ProfileForm({
 
       <button
         type="submit"
-        disabled={submitting || !dirty || pendingSupplement}
+        disabled={submitting || !dirty || pendingSupplement || pendingSport}
         className="btn-primary self-start"
       >
         {submitting

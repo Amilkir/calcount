@@ -9,7 +9,11 @@ import type { Food } from "@/lib/types";
 import { SERVING_UNIT_LABELS } from "@/lib/labels";
 import { foodMacrosPerServing, type PredominantMacro } from "@/lib/macros";
 import {
+  PORTION_STEP,
   entryCalories,
+  formatPortions,
+  isValidPortion,
+  portionTotals,
   templateCalories,
   type MealTemplateWithItems,
 } from "@/lib/meals";
@@ -21,6 +25,7 @@ export type NewEntryPayload =
   | { kind: "food"; foodId: string; quantity: number }
   | { kind: "free"; description: string; calories: number; macro: PredominantMacro }
   | { kind: "meal"; mealTemplateId: string; items: { itemId: string; quantity: number }[] }
+  | { kind: "portion"; mealTemplateId: string; portions: number }
   | { kind: "batch"; foods: { foodId: string; quantity: number }[] };
 
 const FREE_MACRO_OPTIONS: {
@@ -138,11 +143,28 @@ export default function AddEntryModal({
   // Cantidades de esta carga (parten de las de la plantilla) y alimentos desmarcados.
   const [mealQuantities, setMealQuantities] = useState<Record<string, number | null>>({});
   const [mealExcluded, setMealExcluded] = useState<Set<string>>(new Set());
+  // Comida porcionable: cuántas porciones se comieron (null = campo vacío).
+  const [portions, setPortions] = useState<number | null>(1);
 
   function selectMeal(meal: MealTemplateWithItems) {
     setSelectedMealId(meal.id);
     setMealQuantities(Object.fromEntries(meal.items.map((i) => [i.id, i.quantity])));
     setMealExcluded(new Set());
+    setPortions(1);
+  }
+
+  const portionable =
+    selectedMeal?.servings != null ? { ...selectedMeal, servings: selectedMeal.servings } : null;
+  const portionsValid = isValidPortion(portions);
+  const portionPreview =
+    portionable && portionsValid ? portionTotals(portionable, portions as number) : null;
+
+  async function handleSubmitPortions(e: React.FormEvent) {
+    e.preventDefault();
+    if (!portionable || !portionsValid) return;
+    setSubmitting(true);
+    await onSubmit({ kind: "portion", mealTemplateId: portionable.id, portions: portions as number });
+    setSubmitting(false);
   }
 
   const mealSelection = (selectedMeal?.items ?? [])
@@ -206,7 +228,7 @@ export default function AddEntryModal({
           <button
             type="button"
             onClick={() => setMode("food")}
-            className={`flex-1 rounded-full py-1.5 transition-colors ${
+            className={`flex-auto whitespace-nowrap rounded-full px-2 py-1.5 transition-colors ${
               mode === "food" ? "bg-white shadow-sm text-brand-700" : "text-neutral-500"
             }`}
           >
@@ -215,7 +237,7 @@ export default function AddEntryModal({
           <button
             type="button"
             onClick={() => setMode("meal")}
-            className={`flex-1 rounded-full py-1.5 transition-colors ${
+            className={`flex-auto whitespace-nowrap rounded-full px-2 py-1.5 transition-colors ${
               mode === "meal" ? "bg-white shadow-sm text-brand-700" : "text-neutral-500"
             }`}
           >
@@ -224,16 +246,16 @@ export default function AddEntryModal({
           <button
             type="button"
             onClick={() => setMode("autofill")}
-            className={`flex-1 rounded-full py-1.5 transition-colors ${
+            className={`flex-auto whitespace-nowrap rounded-full px-2 py-1.5 transition-colors ${
               mode === "autofill" ? "bg-white shadow-sm text-brand-700" : "text-neutral-500"
             }`}
           >
-            Completar
+            Autocompletar
           </button>
           <button
             type="button"
             onClick={() => setMode("free")}
-            className={`flex-1 rounded-full py-1.5 transition-colors ${
+            className={`flex-auto whitespace-nowrap rounded-full px-2 py-1.5 transition-colors ${
               mode === "free" ? "bg-white shadow-sm text-brand-700" : "text-neutral-500"
             }`}
           >
@@ -270,15 +292,83 @@ export default function AddEntryModal({
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-medium text-neutral-800">{meal.name}</span>
                     <span className="block truncate text-xs text-neutral-500">
-                      {meal.items.map((i) => i.food.name).join(", ")}
+                      {meal.servings != null
+                        ? `Rinde ${meal.servings} porciones`
+                        : meal.items.map((i) => i.food.name).join(", ")}
                     </span>
                   </span>
                   <span className="shrink-0 whitespace-nowrap text-xs text-neutral-500">
-                    {Math.round(templateCalories(meal))} kcal
+                    {meal.servings != null
+                      ? `${Math.round(templateCalories(meal) / meal.servings)} kcal/porción`
+                      : `${Math.round(templateCalories(meal))} kcal`}
                   </span>
                 </button>
               ))}
             </div>
+          ) : portionable ? (
+            <form onSubmit={handleSubmitPortions} className="mt-4 flex flex-col gap-4">
+              <div className="flex items-center gap-3 rounded-lg bg-neutral-50 p-3">
+                <span className="text-2xl">{portionable.icon}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium">{portionable.name}</p>
+                  <p className="text-xs text-neutral-500">
+                    Rinde {portionable.servings} porciones ·{" "}
+                    {Math.round(templateCalories(portionable) / portionable.servings)} kcal por porción
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedMealId(null)}
+                  className="text-xs font-semibold text-brand-700 hover:underline"
+                >
+                  Cambiar
+                </button>
+              </div>
+
+              <label className="flex flex-wrap items-center gap-2 text-sm font-medium text-neutral-700">
+                ¿Cuántas porciones comiste?
+                <input
+                  type="number"
+                  min={PORTION_STEP}
+                  step={PORTION_STEP}
+                  inputMode="decimal"
+                  value={portions ?? ""}
+                  onChange={(e) => setPortions(e.target.value === "" ? null : Number(e.target.value))}
+                  aria-label="Porciones consumidas"
+                  className="w-20 rounded-lg border border-neutral-300 px-2 py-1 text-sm"
+                  autoFocus
+                  required
+                />
+              </label>
+              {portions != null && !portionsValid && (
+                <p className="text-xs text-danger-600">Usa porciones enteras o medias (ej.: 1, 1,5, 2).</p>
+              )}
+
+              {portionPreview && (
+                <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 rounded-lg border border-neutral-200 px-3 py-2 text-sm">
+                  <span className="font-semibold text-neutral-900">
+                    {Math.round(portionPreview.calories)} kcal
+                  </span>
+                  <span className="text-xs text-neutral-500">
+                    P {Math.round(portionPreview.protein)} g · C {Math.round(portionPreview.carbs)} g · G{" "}
+                    {Math.round(portionPreview.fat)} g
+                  </span>
+                </div>
+              )}
+
+              <p className="text-xs text-neutral-500">
+                Se carga como un solo registro. Si después editas la receta, lo que ya registraste no
+                cambia.
+              </p>
+
+              <button type="submit" disabled={submitting || !portionsValid} className="btn-primary">
+                {submitting
+                  ? "Agregando..."
+                  : portionsValid
+                    ? `Agregar ${formatPortions(portions as number)}`
+                    : "Agregar"}
+              </button>
+            </form>
           ) : (
             <form onSubmit={handleSubmitMeal} className="mt-4 flex flex-col gap-4">
               <div className="flex items-center gap-3 rounded-lg bg-neutral-50 p-3">

@@ -1,4 +1,5 @@
 import type { Supplement } from "./supplements";
+import type { SportDone } from "./sports";
 
 /** Registro diario de hidratación y suplementos, tal como lo devuelve la API. */
 export interface DailyLogData {
@@ -7,6 +8,13 @@ export interface DailyLogData {
   waterGoalMl: number;
   supplementsPlanned: Supplement[];
   supplementsTaken: Supplement[];
+  /** Deportes hechos ese día, con las kcal que se suman a la meta. */
+  sportsDone: SportDone[];
+  /** Metas vigentes ese día (sin el extra por deporte); null si no se guardaron. */
+  goalCalories?: number | null;
+  proteinG?: number | null;
+  carbsG?: number | null;
+  fatG?: number | null;
 }
 
 export interface DayHabitStatus {

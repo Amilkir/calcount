@@ -7,10 +7,15 @@ import Dashboard from "@/components/Dashboard";
 
 export default async function ProfileDashboardPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ date?: string | string[] }>;
 }) {
   const { id } = await params;
+  // ?date=YYYY-MM-DD abre un día pasado para editarlo (desde Estadísticas).
+  const rawDate = (await searchParams).date;
+  const date = typeof rawDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : undefined;
   const user = await requireUserPage();
   const profile = await prisma.profile.findFirst({ where: { id, userId: user.id } });
   if (!profile) notFound();
@@ -28,5 +33,12 @@ export default async function ProfileDashboardPage({
     getTargetsForProfile(profile),
   ]);
 
-  return <Dashboard profile={profile} foods={foods} meals={meals} targets={targets} />;
+  return <Dashboard
+      key={date ?? "today"}
+      profile={profile}
+      foods={foods}
+      meals={meals}
+      targets={targets}
+      date={date}
+    />;
 }

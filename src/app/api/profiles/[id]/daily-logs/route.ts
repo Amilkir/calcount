@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import type { DailyLog } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { authorizeProfile } from "@/lib/session";
-import { calculateCalorieTargets } from "@/lib/calories";
 import type { DailyLogData } from "@/lib/daily-log";
-import { addDays, toDateKey } from "@/lib/date";
+import { dayLogSnapshot, isSnapshotDate } from "@/lib/targets";
 import { decodeSupplements, parseSupplementList } from "@/lib/supplements";
+import { decodeSportsDone, parseSportsDoneInput, sportCreditKcal } from "@/lib/sports";
 import { isFiniteNumber, isNonEmptyString } from "@/lib/validate";
 
 type Context = { params: Promise<{ id: string }> };
@@ -20,6 +20,11 @@ function toData(log: DailyLog): DailyLogData {
     waterGoalMl: log.waterGoalMl,
     supplementsPlanned: decodeSupplements(log.supplementsPlanned),
     supplementsTaken: decodeSupplements(log.supplementsTaken),
+    sportsDone: decodeSportsDone(log.sportsDone),
+    goalCalories: log.goalCalories,
+    proteinG: log.proteinG,
+    carbsG: log.carbsG,
+    fatG: log.fatG,
   };
 }
 
@@ -49,7 +54,10 @@ export async function GET(request: NextRequest, context: Context) {
   return NextResponse.json(logs.map(toData));
 }
 
-/** Crea o actualiza el registro de un día. Acepta `waterMl` y/o `supplementsTaken`. */
+/**
+ * Crea o actualiza el registro de un día. Acepta `waterMl`, `supplementsTaken` y/o
+ * `sportsDone` ([{ sport, minutes }]; las kcal se calculan aquí con el peso y la meta actuales).
+ */
 export async function PUT(request: NextRequest, context: Context) {
   const { id } = await context.params;
   const auth = await authorizeProfile(id);
@@ -61,7 +69,7 @@ export async function PUT(request: NextRequest, context: Context) {
     return NextResponse.json({ error: "Fecha inválida." }, { status: 400 });
   }
 
-  const data: { waterMl?: number; supplementsTaken?: string } = {};
+  const data: { waterMl?: number; supplementsTaken?: string; sportsDone?: string } = {};
 
   if (body?.waterMl !== undefined) {
     const waterMl = body.waterMl;
@@ -79,14 +87,21 @@ export async function PUT(request: NextRequest, context: Context) {
     data.supplementsTaken = JSON.stringify(taken);
   }
 
-  // Se guarda lo vigente del perfil, para que el historial del día no cambie si más
-  // adelante se editan los suplementos o el peso. Los días pasados conservan el suyo.
-  const snapshot = {
-    waterGoalMl: calculateCalorieTargets(auth.profile).waterMl,
-    supplementsPlanned: JSON.stringify(decodeSupplements(auth.profile.supplements)),
-  };
-  // Margen de un día por la diferencia horaria entre el servidor (UTC) y el usuario.
-  const refreshSnapshot = date >= addDays(toDateKey(new Date()), -1);
+  if (body?.sportsDone !== undefined) {
+    const done = parseSportsDoneInput(body.sportsDone);
+    if (!done) {
+      return NextResponse.json({ error: "Deportes inválidos." }, { status: 400 });
+    }
+    const { weightKg, goal } = auth.profile;
+    data.sportsDone = JSON.stringify(
+      done.map((d) => ({ ...d, kcal: sportCreditKcal(d.sport, d.minutes, weightKg, goal) }))
+    );
+  }
+
+  // Se guarda lo vigente del perfil (metas, agua y suplementos), para que el historial del
+  // día no cambie si más adelante se edita el perfil o el peso. Los días pasados conservan el suyo.
+  const snapshot = await dayLogSnapshot(auth.profile);
+  const refreshSnapshot = isSnapshotDate(date);
 
   const log = await prisma.dailyLog.upsert({
     where: { profileId_date: { profileId: id, date } },

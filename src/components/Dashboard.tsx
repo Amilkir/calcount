@@ -7,19 +7,27 @@ import type { Food, FoodEntryWithFood, Profile } from "@/lib/types";
 import type { MealTemplateWithItems } from "@/lib/meals";
 import type { MealSlot } from "@/generated/prisma/enums";
 import { MEAL_SLOT_LABELS, MEAL_SLOT_ORDER } from "@/lib/labels";
-import { addDays, formatDateDisplay, getWeekDates, toDateKey } from "@/lib/date";
+import { formatDateDisplay, toDateKey } from "@/lib/date";
 import CalorieSummary from "./CalorieSummary";
 import MacroPieChart from "./MacroPieChart";
 import MealSlotSection, { type EntryUpdate } from "./MealSlotSection";
 import AddEntryModal, { type NewEntryPayload } from "./AddEntryModal";
-import WeekSummary from "./WeekSummary";
 import TargetsPanel from "./TargetsPanel";
 import WeightTracker from "./WeightTracker";
 import HydrationCard from "./HydrationCard";
 import SupplementsCard from "./SupplementsCard";
 import type { CalorieTargets } from "@/lib/calories";
-import { dayHabitStatus, dayPlan, type DailyLogData, type DayHabitStatus } from "@/lib/daily-log";
+import { dayPlan, type DailyLogData } from "@/lib/daily-log";
 import { decodeSupplements, type Supplement } from "@/lib/supplements";
+import {
+  decodeSportPlan,
+  sportCreditKcal,
+  sportsBonusKcal,
+  type Sport,
+  type SportDone,
+} from "@/lib/sports";
+import SportsCard from "./SportsCard";
+import { PencilIcon } from "./icons";
 
 function CalorieSummarySkeleton() {
   return (
@@ -74,19 +82,6 @@ async function fetchEntries(profileId: string, date: string): Promise<FoodEntryW
   return res.json();
 }
 
-async function fetchWeekSummary(
-  profileId: string,
-  startDate: string,
-  endDate: string
-): Promise<Record<string, number>> {
-  const res = await fetch(
-    `/api/entries/summary?profileId=${profileId}&startDate=${startDate}&endDate=${endDate}`
-  );
-  if (!res.ok) return {};
-  const data: { date: string; calories: number }[] = await res.json();
-  return Object.fromEntries(data.map((d) => [d.date, d.calories]));
-}
-
 async function fetchDailyLogs(
   profileId: string,
   startDate: string,
@@ -105,47 +100,80 @@ export default function Dashboard({
   foods,
   meals,
   targets,
+  date,
 }: {
   profile: Profile;
   foods: Food[];
   meals: MealTemplateWithItems[];
   targets: CalorieTargets;
+  /** Día a editar (desde Estadísticas). Sin fecha, es el día de hoy. */
+  date?: string;
 }) {
-  const goalCalories = targets.goalCalories;
-  const [dateKey, setDateKey] = useState(() => toDateKey(new Date()));
+  const todayKey = toDateKey(new Date());
+  // "Hoy" es solo el día en curso; otro día se abre desde Estadísticas (no se editan días futuros).
+  const dateKey = date && date < todayKey ? date : todayKey;
+  const isToday = dateKey === todayKey;
   const [entries, setEntries] = useState<FoodEntryWithFood[] | null>(null);
   const [activeSlot, setActiveSlot] = useState<MealSlot | null>(null);
-  const [weekTotals, setWeekTotals] = useState<Record<string, number>>({});
   const [dailyLogs, setDailyLogs] = useState<Record<string, DailyLogData>>({});
   // Último guardado por día: las respuestas de guardados anteriores se ignoran.
   const saveSeq = useRef<Record<string, number>>({});
 
-  const weekDates = getWeekDates(dateKey);
-  const todayKey = toDateKey(new Date());
   const currentHabits = {
     supplements: decodeSupplements(profile.supplements),
     waterGoalMl: targets.waterMl,
     todayKey,
   };
-  const habitStatus: Record<string, DayHabitStatus> = Object.fromEntries(
-    weekDates.map((d) => [d, dayHabitStatus(d, dailyLogs[d], currentHabits)])
-  );
   const dayLog = dailyLogs[dateKey];
   const plan = dayPlan(dateKey, dayLog, currentHabits);
 
+  // Un día pasado se compara con las metas vigentes entonces, si quedaron guardadas.
+  const baseTargets = useMemo<CalorieTargets>(() => {
+    if (isToday || dayLog?.goalCalories == null) return targets;
+    return {
+      ...targets,
+      goalCalories: dayLog.goalCalories,
+      macros: {
+        proteinG: dayLog.proteinG ?? targets.macros.proteinG,
+        carbsG: dayLog.carbsG ?? targets.macros.carbsG,
+        fatG: dayLog.fatG ?? targets.macros.fatG,
+      },
+    };
+  }, [isToday, dayLog, targets]);
+  const baseGoal = baseTargets.goalCalories;
+
+  // Deporte: la meta base no lo incluye; se suma lo marcado cada día (sobre todo como carbohidratos,
+  // porque la proteína y la grasa se calculan por kg de peso).
+  const sportPlan = decodeSportPlan(profile.sports);
+  const sportsDone = dayLog?.sportsDone ?? [];
+  const sportBonus = sportsBonusKcal(sportsDone);
+  const goalCalories = baseGoal + sportBonus;
+  const dayTargets = useMemo<CalorieTargets>(
+    () => ({
+      ...baseTargets,
+      goalCalories,
+      macros: { ...baseTargets.macros, carbsG: baseTargets.macros.carbsG + sportBonus / 4 },
+    }),
+    [baseTargets, goalCalories, sportBonus]
+  );
+  const creditFor = (sport: Sport, minutes: number) =>
+    sportCreditKcal(sport, minutes, profile.weightKg, profile.goal);
+
   useEffect(() => {
     let cancelled = false;
-    fetchDailyLogs(profile.id, weekDates[0], weekDates[6]).then((data) => {
+    fetchDailyLogs(profile.id, dateKey, dateKey).then((data) => {
       if (!cancelled) setDailyLogs(data);
     });
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile.id, weekDates[0]]);
+  }, [profile.id, dateKey]);
 
   /** Actualiza el día al instante y lo guarda en segundo plano. */
-  async function saveDailyLog(date: string, change: { waterMl?: number; supplementsTaken?: Supplement[] }) {
+  async function saveDailyLog(
+    date: string,
+    change: { waterMl?: number; supplementsTaken?: Supplement[]; sportsDone?: SportDone[] }
+  ) {
     setDailyLogs((prev) => {
       const base: DailyLogData = prev[date] ?? {
         date,
@@ -153,6 +181,7 @@ export default function Dashboard({
         waterGoalMl: plan.waterGoalMl,
         supplementsPlanned: plan.supplements,
         supplementsTaken: [],
+        sportsDone: [],
       };
       return { ...prev, [date]: { ...base, ...change } };
     });
@@ -171,7 +200,7 @@ export default function Dashboard({
       if (saveSeq.current[date] === seq) setDailyLogs((prev) => ({ ...prev, [date]: saved }));
     } else {
       // Si falló, se vuelve a lo que hay guardado.
-      const fresh = await fetchDailyLogs(profile.id, weekDates[0], weekDates[6]);
+      const fresh = await fetchDailyLogs(profile.id, dateKey, dateKey);
       setDailyLogs(fresh);
     }
   }
@@ -194,24 +223,8 @@ export default function Dashboard({
     };
   }, [profile.id, dateKey]);
 
-  useEffect(() => {
-    let cancelled = false;
-    fetchWeekSummary(profile.id, weekDates[0], weekDates[6]).then((data) => {
-      if (!cancelled) setWeekTotals(data);
-    });
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile.id, weekDates[0]]);
-
   async function refresh() {
-    const [dayEntries, summary] = await Promise.all([
-      fetchEntries(profile.id, dateKey),
-      fetchWeekSummary(profile.id, weekDates[0], weekDates[6]),
-    ]);
-    setEntries(dayEntries);
-    setWeekTotals(summary);
+    setEntries(await fetchEntries(profile.id, dateKey));
   }
 
   async function handleAddEntry(payload: NewEntryPayload) {
@@ -222,7 +235,9 @@ export default function Dashboard({
         ? { ...base, foodId: payload.foodId, quantity: payload.quantity }
         : payload.kind === "meal"
           ? { ...base, mealTemplateId: payload.mealTemplateId, items: payload.items }
-          : payload.kind === "batch"
+          : payload.kind === "portion"
+            ? { ...base, mealTemplateId: payload.mealTemplateId, portions: payload.portions }
+            : payload.kind === "batch"
             ? { ...base, foods: payload.foods }
             : {
                 ...base,
@@ -264,11 +279,11 @@ export default function Dashboard({
     const day = sumDayMacros(entries ?? []);
     return {
       calories: goalCalories - (entries ?? []).reduce((sum, e) => sum + e.calories, 0),
-      protein: targets.macros.proteinG - day.protein,
-      carbs: targets.macros.carbsG - day.carbs,
-      fat: targets.macros.fatG - day.fat,
+      protein: dayTargets.macros.proteinG - day.protein,
+      carbs: dayTargets.macros.carbsG - day.carbs,
+      fat: dayTargets.macros.fatG - day.fat,
     };
-  }, [entries, goalCalories, targets.macros]);
+  }, [entries, goalCalories, dayTargets.macros]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -282,17 +297,24 @@ export default function Dashboard({
         </Link>
       </div>
 
-      <WeekSummary
-        weekDates={weekDates}
-        dailyTotals={weekTotals}
-        habitStatus={habitStatus}
-        todayKey={todayKey}
-        goalCalories={goalCalories}
-        selectedDate={dateKey}
-        onSelectDate={setDateKey}
-        onPrevWeek={() => setDateKey((d) => addDays(d, -7))}
-        onNextWeek={() => setDateKey((d) => addDays(d, 7))}
-      />
+      {!isToday && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-sun-100 bg-sun-50 px-4 py-3 text-sm text-sun-800">
+          <span className="flex items-center gap-2">
+            <PencilIcon size={14} className="shrink-0" />
+            <span>
+              Estás editando el <span className="font-semibold">{formatDateDisplay(dateKey)}</span>.
+            </span>
+          </span>
+          <span className="flex gap-3 font-semibold">
+            <Link href="/stats" className="hover:underline">
+              Volver a Estadísticas
+            </Link>
+            <Link href={`/profiles/${profile.id}`} className="hover:underline">
+              Ir a hoy
+            </Link>
+          </span>
+        </div>
+      )}
 
       {loading ? (
         <CalorieSummarySkeleton />
@@ -302,7 +324,17 @@ export default function Dashboard({
 
       {loading ? <MacroPieChartSkeleton /> : <MacroPieChart entries={entries ?? []} />}
 
-      {!loading && <TargetsPanel targets={targets} entries={entries ?? []} />}
+      {!loading && <TargetsPanel targets={dayTargets} entries={entries ?? []} />}
+
+      {(sportPlan.length > 0 || sportsDone.length > 0) && (
+        <SportsCard
+          plan={sportPlan}
+          done={sportsDone}
+          isToday={isToday}
+          creditFor={creditFor}
+          onChange={(next) => saveDailyLog(dateKey, { sportsDone: next })}
+        />
+      )}
 
       <div className={`grid gap-4 ${plan.supplements.length > 0 ? "sm:grid-cols-2" : ""}`}>
         <HydrationCard
@@ -336,7 +368,7 @@ export default function Dashboard({
             ))}
       </div>
 
-      <WeightTracker profileId={profile.id} />
+      {isToday && <WeightTracker profileId={profile.id} />}
 
       {activeSlot && (
         <AddEntryModal

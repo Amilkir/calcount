@@ -17,6 +17,7 @@ import {
   WORKOUT_TYPE_LABELS,
 } from "./labels";
 import { decodeSupplements, formatSupplements } from "./supplements";
+import { decodeSportPlan, formatSportPlan } from "./sports";
 
 export type ChangeSource = "CREATED" | "EDIT" | "WEIGHT";
 
@@ -61,6 +62,7 @@ const FIELDS: Record<string, { label: string; format: (v: unknown) => string }> 
   workoutsPerWeek: { label: "Entrenamientos por semana", format: num() },
   workoutMinutes: { label: "Minutos por sesión", format: num("min") },
   workoutType: { label: "Tipo de entrenamiento", format: lookup(WORKOUT_TYPE_LABELS) },
+  sports: { label: "Deportes", format: (v) => formatSportPlan(decodeSportPlan(v as string)) },
   physiologicalState: { label: "Embarazo / lactancia", format: lookup(PHYSIOLOGICAL_STATE_LABELS) },
   thyroidCondition: { label: "Tiroides", format: lookup(THYROID_LABELS) },
   macroPreset: { label: "Distribución de macros", format: lookup(MACRO_PRESET_LABELS) },

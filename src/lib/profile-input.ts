@@ -15,6 +15,7 @@ import {
 } from "@/generated/prisma/enums";
 import { isEnumValue, isFiniteNumber, isNonEmptyString } from "./validate";
 import { parseSupplementList } from "./supplements";
+import { parseSportPlan } from "./sports";
 
 type Rule =
   | { kind: "enum"; values: Record<string, string>; label: string; nullable?: boolean }
@@ -65,6 +66,7 @@ const RULES: Record<string, Rule> = {
 
   useBodyTypeAdjustment: { kind: "boolean", label: "Ajuste por tipo de cuerpo" },
   adaptiveTdee: { kind: "boolean", label: "Ajuste dinámico" },
+  showWeightChart: { kind: "boolean", label: "Gráfico de peso" },
 };
 
 export type ProfileInputResult =
@@ -104,6 +106,14 @@ export function parseProfileInput(
       return { ok: false, error: "Suplementos inválidos." };
     }
     data.supplements = JSON.stringify(supplements);
+  }
+
+  if (input.sports !== undefined) {
+    const sports = parseSportPlan(input.sports);
+    if (!sports) {
+      return { ok: false, error: "Deportes inválidos." };
+    }
+    data.sports = JSON.stringify(sports);
   }
 
   for (const [field, rule] of Object.entries(RULES)) {

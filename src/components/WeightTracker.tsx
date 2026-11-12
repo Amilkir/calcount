@@ -1,8 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import type { AdaptiveEstimate } from "@/lib/adaptive";
 import { formatDateDisplay, toDateKey } from "@/lib/date";
 
 interface WeightLogRow {
@@ -11,40 +11,10 @@ interface WeightLogRow {
   weightKg: number;
 }
 
-const CHART_W = 280;
-const CHART_H = 70;
-
-function Sparkline({ logs }: { logs: WeightLogRow[] }) {
-  if (logs.length < 2) return null;
-  const sorted = [...logs].sort((a, b) => a.date.localeCompare(b.date));
-  const weights = sorted.map((l) => l.weightKg);
-  const min = Math.min(...weights);
-  const max = Math.max(...weights);
-  const range = max - min || 1;
-  const points = sorted
-    .map((l, i) => {
-      const x = (i / (sorted.length - 1)) * (CHART_W - 8) + 4;
-      const y = CHART_H - 6 - ((l.weightKg - min) / range) * (CHART_H - 12);
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(" ");
-
-  return (
-    <svg
-      viewBox={`0 0 ${CHART_W} ${CHART_H}`}
-      className="h-[70px] w-full max-w-sm"
-      role="img"
-      aria-label="Tendencia del peso"
-    >
-      <polyline points={points} fill="none" className="stroke-lagoon-500" strokeWidth={2} />
-    </svg>
-  );
-}
-
+/** Carga rápida del peso en "Hoy". La evolución y el historial están en Estadísticas. */
 export default function WeightTracker({ profileId }: { profileId: string }) {
   const router = useRouter();
-  const [logs, setLogs] = useState<WeightLogRow[]>([]);
-  const [estimate, setEstimate] = useState<AdaptiveEstimate | null>(null);
+  const [latest, setLatest] = useState<WeightLogRow | null>(null);
   const [date, setDate] = useState(() => toDateKey(new Date()));
   const [weight, setWeight] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -53,9 +23,8 @@ export default function WeightTracker({ profileId }: { profileId: string }) {
   const load = useCallback(async () => {
     const res = await fetch(`/api/profiles/${profileId}/weights`);
     if (!res.ok) return;
-    const data = await res.json();
-    setLogs(data.logs);
-    setEstimate(data.estimate);
+    const data: { logs: WeightLogRow[] } = await res.json();
+    setLatest(data.logs[0] ?? null);
   }, [profileId]);
 
   useEffect(() => {
@@ -88,21 +57,16 @@ export default function WeightTracker({ profileId }: { profileId: string }) {
     router.refresh();
   }
 
-  async function handleDelete(logDate: string) {
-    const res = await fetch(`/api/profiles/${profileId}/weights?date=${logDate}`, {
-      method: "DELETE",
-    });
-    if (res.ok) {
-      await load();
-      router.refresh();
-    }
-  }
-
   return (
     <div className="flex flex-col gap-4 border-t border-neutral-200 pt-6">
-      <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-        Registro de peso
-      </p>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+          Registro de peso
+        </p>
+        <Link href="/stats" className="text-xs font-semibold text-brand-700 hover:underline">
+          Ver evolución en Estadísticas
+        </Link>
+      </div>
 
       <form onSubmit={handleAdd} className="grid grid-cols-1 gap-3 sm:flex sm:flex-wrap sm:items-end">
         <label className="flex flex-col gap-1 text-sm">
@@ -110,6 +74,7 @@ export default function WeightTracker({ profileId }: { profileId: string }) {
           <input
             type="date"
             value={date}
+            max={toDateKey(new Date())}
             onChange={(e) => setDate(e.target.value)}
             className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
             required
@@ -129,57 +94,17 @@ export default function WeightTracker({ profileId }: { profileId: string }) {
             required
           />
         </label>
-        <button
-          type="submit"
-          disabled={saving}
-          className="btn-primary w-full sm:w-auto"
-        >
+        <button type="submit" disabled={saving} className="btn-primary w-full sm:w-auto">
           {saving ? "Guardando..." : "Registrar"}
         </button>
       </form>
       {error && <p className="text-sm text-danger-600">{error}</p>}
 
-      <Sparkline logs={logs} />
-
-      {logs.length > 0 && (
-        <ul className="divide-y divide-neutral-100 text-sm">
-          {logs.slice(0, 6).map((log) => (
-            <li key={log.id} className="flex items-center justify-between py-1.5 text-xs sm:text-sm">
-              <span className="capitalize text-neutral-600 truncate mr-2">{formatDateDisplay(log.date)}</span>
-              <span className="flex items-center gap-3 shrink-0">
-                <span className="font-semibold text-neutral-800">{log.weightKg} kg</span>
-                <button
-                  onClick={() => handleDelete(log.date)}
-                  className="p-1 text-xs font-medium text-danger-600 hover:underline"
-                >
-                  Eliminar
-                </button>
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {estimate && (
-        <div className="rounded-lg bg-neutral-50 p-3 text-sm text-neutral-700">
-          {estimate.observedTdee != null ? (
-            <>
-              <p>
-                Gasto real estimado:{" "}
-                <span className="font-semibold">{estimate.observedTdee} kcal/día</span>
-              </p>
-              <p className="text-xs text-neutral-500">
-                Ingesta media {estimate.avgIntake} kcal · tendencia{" "}
-                {estimate.slopeKgPerWeek != null && estimate.slopeKgPerWeek > 0 ? "+" : ""}
-                {estimate.slopeKgPerWeek} kg/semana. Actívalo en el perfil para que ajuste tus metas.
-              </p>
-            </>
-          ) : (
-            <p className="text-xs text-neutral-500">
-              Ajuste dinámico: {estimate.reason}
-            </p>
-          )}
-        </div>
+      {latest && (
+        <p className="text-sm text-neutral-600">
+          Último registro: <span className="font-semibold text-neutral-800">{latest.weightKg} kg</span>{" "}
+          <span className="text-neutral-500">({formatDateDisplay(latest.date)})</span>
+        </p>
       )}
     </div>
   );
