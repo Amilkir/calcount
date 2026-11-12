@@ -12,6 +12,7 @@ import type {
   ThyroidCondition,
   WorkoutType,
 } from "@/generated/prisma/enums";
+import { averageDailySportKcal, decodeSportPlan, type SportPlan } from "./sports";
 
 const ACTIVITY_MULTIPLIER: Record<ActivityLevel, number> = {
   SEDENTARY: 1.2,
@@ -43,7 +44,6 @@ const WORKOUT_MET: Record<WorkoutType, number> = {
   STRENGTH: 5,
   HIIT: 8,
   SWIMMING: 7,
-  SPORTS: 7,
   OTHER: 5,
 };
 
@@ -121,6 +121,9 @@ export interface CalorieInput {
   sleepHours?: number | null;
   stressLevel?: "LOW" | "MODERATE" | "HIGH" | null;
   climate?: Climate;
+
+  // Deportes aparte del entrenamiento (JSON del perfil o lista). No suman a la meta base.
+  sports?: string | SportPlan[] | null;
 
   // TDEE observado a partir del peso real y la ingesta (ver adaptive.ts).
   observedTdee?: number | null;
@@ -278,12 +281,23 @@ export function calculateCalorieTargets(input: CalorieInput): CalorieTargets {
   const formulaMaintenance =
     tdee * (useBodyType ? BODY_TYPE_ADJUSTMENT[bodyType] : 1) + extraKcal;
 
+  // Los deportes no entran en la meta base: se suman el día que se marcan en "Hoy".
+  const sportPlan = decodeSportPlan(input.sports);
+  const sportAvgKcal = averageDailySportKcal(sportPlan, weightKg);
+  if (sportPlan.length > 0) {
+    notes.push(
+      "Tus deportes no están incluidos en esta meta: se suman los días que los marcas en «Hoy»."
+    );
+  }
+
   let maintenance = formulaMaintenance;
   let maintenanceSource: "formula" | "adaptive" = "formula";
   if (input.observedTdee != null && Number.isFinite(input.observedTdee)) {
+    // El gasto observado ya incluye el deporte promedio; se descuenta para no sumarlo dos veces.
+    const observedBase = input.observedTdee - sportAvgKcal;
     maintenance = Math.min(
       formulaMaintenance * (1 + ADAPTIVE_CLAMP),
-      Math.max(formulaMaintenance * (1 - ADAPTIVE_CLAMP), input.observedTdee)
+      Math.max(formulaMaintenance * (1 - ADAPTIVE_CLAMP), observedBase)
     );
     maintenanceSource = "adaptive";
   }

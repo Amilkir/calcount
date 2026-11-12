@@ -84,10 +84,13 @@ const SECTIONS: { title: string; items: Faq[] }[] = [
         q: "¿Cómo funciona el autocompletado de calorías?",
         a: (
           <p>
-            Al agregar alimentos a una comida, en la pestaña «Completar» eliges lo que tienes disponible
+            Al agregar alimentos a una comida, en la pestaña «Autocompletar» eliges lo que tienes disponible
             y la app te propone dos opciones con cantidades enteras: una que completa exactamente las
             calorías que te quedan, y otra que busca completar la proteína, los carbohidratos y la grasa
-            del día, avisándote si con ella te pasas de calorías y por cuánto.
+            del día, avisándote si con ella te pasas de calorías y por cuánto. Si quieres, indica
+            cuántas comidas te quedan hoy (incluida la que estás cargando) y lo que falta se reparte en
+            partes iguales: por ejemplo, con 1600 kcal pendientes y 3 comidas, la propuesta apunta a
+            unas 533 kcal para esta.
           </p>
         ),
       },

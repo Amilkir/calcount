@@ -7,6 +7,8 @@ import { suggestPortions, type AutofillOption, type Remaining } from "@/lib/auto
 import FoodPicker from "./FoodPicker";
 
 const MAX_FOODS = 6;
+// Elegir 1 equivale a "usar todo lo que queda", así que el desplegable arranca en 2.
+const MEALS_LEFT_OPTIONS = [2, 3, 4, 5];
 
 const MACRO_LABELS = [
   { key: "protein", label: "P" },
@@ -99,6 +101,8 @@ export default function AutofillPanel({
 }) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  // Comidas que quedan en el día (incluida esta). null = usar todo lo que queda.
+  const [mealsLeft, setMealsLeft] = useState<number | null>(null);
 
   const selectedFoods = useMemo(
     () =>
@@ -107,7 +111,27 @@ export default function AutofillPanel({
         .filter((f): f is Food => f != null),
     [foods, selectedIds]
   );
-  const result = useMemo(() => suggestPortions(selectedFoods, remaining), [selectedFoods, remaining]);
+  // Lo que queda del día sin macros negativos (si ya te pasaste de uno, no cuenta como faltante).
+  const dayRemaining = useMemo<Remaining>(
+    () => ({
+      calories: remaining.calories,
+      protein: Math.max(0, remaining.protein),
+      carbs: Math.max(0, remaining.carbs),
+      fat: Math.max(0, remaining.fat),
+    }),
+    [remaining]
+  );
+  // Objetivo de esta comida: todo lo que queda, o una parte igual si se eligió cuántas comidas faltan.
+  const target = useMemo<Remaining>(() => {
+    if (!mealsLeft) return dayRemaining;
+    return {
+      calories: dayRemaining.calories / mealsLeft,
+      protein: dayRemaining.protein / mealsLeft,
+      carbs: dayRemaining.carbs / mealsLeft,
+      fat: dayRemaining.fat / mealsLeft,
+    };
+  }, [dayRemaining, mealsLeft]);
+  const result = useMemo(() => suggestPortions(selectedFoods, target), [selectedFoods, target]);
   const available = useMemo(
     () => foods.filter((f) => !selectedIds.includes(f.id)),
     [foods, selectedIds]
@@ -127,19 +151,49 @@ export default function AutofillPanel({
     );
   }
 
-  const exactGap = result ? Math.round(result.exact.totals.calories - remaining.calories) : 0;
+  const exactGap = result ? Math.round(result.exact.totals.calories - target.calories) : 0;
   const macroExcess = result?.macros
-    ? Math.round(result.macros.totals.calories - remaining.calories)
+    ? Math.round(result.macros.totals.calories - target.calories)
     : 0;
+  const goalLabel = mealsLeft ? "lo asignado a esta comida" : "tu meta del día";
 
   return (
     <div className="mt-4 flex flex-col gap-4">
+      <label className="flex flex-col gap-1">
+        <span className="text-sm font-medium text-neutral-700">
+          ¿Cuántas comidas te quedan hoy? <span className="font-normal text-neutral-500">(opcional, incluida esta)</span>
+        </span>
+        <select
+          value={mealsLeft ?? ""}
+          onChange={(e) => setMealsLeft(e.target.value === "" ? null : Number(e.target.value))}
+          className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
+        >
+          <option value="">Usar todo lo que queda</option>
+          {MEALS_LEFT_OPTIONS.map((n) => (
+            <option key={n} value={n}>
+              {n} comidas
+            </option>
+          ))}
+        </select>
+      </label>
+
       <div className="rounded-lg bg-brand-50 p-3 text-sm text-brand-900">
         <p>
-          Te quedan <span className="font-semibold">{Math.round(remaining.calories)} kcal</span> para
+          Te quedan <span className="font-semibold">{Math.round(dayRemaining.calories)} kcal</span> para
           completar el día.
         </p>
-        <MacroLine values={{ ...remaining, protein: Math.max(0, remaining.protein), carbs: Math.max(0, remaining.carbs), fat: Math.max(0, remaining.fat) }} />
+        {mealsLeft ? (
+          <>
+            <MacroLine values={dayRemaining} />
+            <p className="mt-2 border-t border-brand-100 pt-2">
+              Para esta comida (1 de {mealsLeft}):{" "}
+              <span className="font-semibold">{Math.round(target.calories)} kcal</span>
+            </p>
+            <MacroLine values={target} />
+          </>
+        ) : (
+          <MacroLine values={dayRemaining} />
+        )}
       </div>
 
       <div className="flex flex-col gap-2">
@@ -179,9 +233,13 @@ export default function AutofillPanel({
         <div className="flex max-h-[45vh] flex-col gap-3 overflow-y-auto">
           <OptionCard
             title="Opción 1 · Calorías exactas"
-            description="Completa justo las calorías que te quedan, repartiendo los macros en la proporción que te falta."
+            description={
+              mealsLeft
+                ? "Completa justo las calorías de esta comida, repartiendo los macros en la proporción que te falta."
+                : "Completa justo las calorías que te quedan, repartiendo los macros en la proporción que te falta."
+            }
             option={result.exact}
-            remaining={remaining}
+            remaining={target}
             submitting={submitting}
             onAdd={() => add(result.exact)}
             notice={
@@ -196,9 +254,13 @@ export default function AutofillPanel({
           {result.macros ? (
             <OptionCard
               title="Opción 2 · Completar macros"
-              description="Busca cubrir la proteína, los carbohidratos y la grasa que te faltan hoy."
+              description={
+                mealsLeft
+                  ? "Busca cubrir la parte de proteína, carbohidratos y grasa que le toca a esta comida."
+                  : "Busca cubrir la proteína, los carbohidratos y la grasa que te faltan hoy."
+              }
               option={result.macros}
-              remaining={remaining}
+              remaining={target}
               submitting={submitting}
               onAdd={() => add(result.macros!)}
               notice={
@@ -206,12 +268,12 @@ export default function AutofillPanel({
                   <p className="flex items-start gap-1.5 rounded-lg bg-sun-50 p-2 text-xs text-sun-800">
                     <AlertIcon size={14} className="mt-px shrink-0" />
                     <span>Con esta opción te pasas por <span className="font-semibold">{macroExcess} kcal</span>{" "}
-                    de tu meta del día.</span>
+                    de {goalLabel}.</span>
                   </p>
                 ) : (
                   <p className="flex items-start gap-1.5 rounded-lg bg-lagoon-50 p-2 text-xs text-lagoon-800">
                     <CheckIcon size={14} className="mt-px shrink-0" />
-                    No superas tus calorías{macroExcess < 0 ? ` (te quedan ${-macroExcess} kcal)` : ""}.
+                    No superas {goalLabel}{macroExcess < 0 ? ` (te quedan ${-macroExcess} kcal)` : ""}.
                   </p>
                 )
               }

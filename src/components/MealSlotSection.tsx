@@ -3,7 +3,7 @@
 import { CheckIcon, CloseIcon, PencilIcon } from "./icons";
 import { useState } from "react";
 import type { FoodEntryWithFood } from "@/lib/types";
-import { entryCalories } from "@/lib/meals";
+import { PORTION_STEP, entryCalories, formatPortions, isValidPortion } from "@/lib/meals";
 import {
   formatFreeDescription,
   parseFreeDescription,
@@ -12,6 +12,7 @@ import {
 
 export type EntryUpdate =
   | { quantity: number }
+  | { portions: number }
   | { calories: number; freeDescription?: string };
 
 const MACRO_BADGES: Record<
@@ -34,34 +35,44 @@ function EntryRow({
   onUpdate: (id: string, change: EntryUpdate) => Promise<boolean>;
 }) {
   const isFood = entry.food != null;
+  // Porciones de una comida porcionable: un solo registro con el nombre de la comida.
+  const isPortion = entry.portions != null;
   const { description: freeDesc, macro: initialMacro } = parseFreeDescription(entry.freeDescription);
-  const name = isFood ? entry.food!.name : freeDesc;
+  const name = isFood ? entry.food!.name : isPortion ? (entry.freeDescription ?? "") : freeDesc;
+  const icon = entry.food ? entry.food.icon : isPortion ? (entry.icon ?? "🍽️") : "📝";
 
-  // Alimento: se edita la cantidad. Alimento libre: se editan las calorías y el macro.
-  const initial = isFood ? entry.quantity : Math.round(entry.calories);
+  // Alimento: se edita la cantidad. Porcionable: las porciones. Libre: las calorías y el macro.
+  const initial = isFood ? entry.quantity : isPortion ? entry.portions : Math.round(entry.calories);
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState<number | null>(initial);
   const [editMacro, setEditMacro] = useState<PredominantMacro>(initialMacro);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(false);
 
-  const unit = isFood ? (entry.food!.servingUnit === "UNIT" ? "u" : "g") : "kcal";
-  const valid = value != null && value > 0;
-  const previewKcal = isFood && valid ? entryCalories(entry.food!, value) : value ?? 0;
+  const unit = isFood ? (entry.food!.servingUnit === "UNIT" ? "u" : "g") : isPortion ? "porc." : "kcal";
+  const valid = isPortion ? isValidPortion(value) : value != null && value > 0;
+  const previewKcal =
+    isFood && valid
+      ? entryCalories(entry.food!, value!)
+      : isPortion && valid
+        ? (entry.calories * value!) / entry.portions!
+        : value ?? 0;
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (!valid) return;
-    if (value === initial && (isFood || editMacro === initialMacro)) {
+    if (value === initial && (isFood || isPortion || editMacro === initialMacro)) {
       setEditing(false);
       return;
     }
     setSaving(true);
     setError(false);
     const change: EntryUpdate = isFood
-      ? { quantity: value }
-      : {
-          calories: value,
+      ? { quantity: value! }
+      : isPortion
+        ? { portions: value! }
+        : {
+          calories: value!,
           freeDescription: formatFreeDescription(freeDesc, editMacro),
         };
 
@@ -76,11 +87,11 @@ function EntryRow({
       <li className="py-2 text-sm">
         <form onSubmit={save} className="flex flex-wrap items-center gap-2">
           <span className="flex min-w-0 flex-1 items-center gap-2 text-neutral-700">
-            <span className="text-lg shrink-0">{entry.food ? entry.food.icon : "📝"}</span>
+            <span className="text-lg shrink-0">{icon}</span>
             <span className="truncate font-medium">{name}</span>
           </span>
           <div className="flex flex-wrap items-center gap-2">
-            {!isFood && (
+            {!isFood && !isPortion && (
               <select
                 value={editMacro}
                 onChange={(e) => setEditMacro(e.target.value as PredominantMacro)}
@@ -96,8 +107,8 @@ function EntryRow({
             <span className="flex items-center gap-1">
               <input
                 type="number"
-                min={0.1}
-                step="any"
+                min={isPortion ? PORTION_STEP : 0.1}
+                step={isPortion ? PORTION_STEP : "any"}
                 value={value ?? ""}
                 onChange={(e) => setValue(e.target.value === "" ? null : Number(e.target.value))}
                 onKeyDown={(e) => {
@@ -107,14 +118,20 @@ function EntryRow({
                     setEditing(false);
                   }
                 }}
-                aria-label={entry.food ? `Cantidad de ${name}` : `Calorías de ${name}`}
+                aria-label={
+                  entry.food
+                    ? `Cantidad de ${name}`
+                    : isPortion
+                      ? `Porciones de ${name}`
+                      : `Calorías de ${name}`
+                }
                 className="w-16 sm:w-20 rounded-lg border border-neutral-300 px-2 py-1 text-sm"
                 autoFocus
                 required
               />
               <span className="text-xs text-neutral-500">{unit}</span>
             </span>
-            {entry.food && (
+            {(entry.food || isPortion) && (
               <span className="w-14 text-right text-xs sm:text-sm text-neutral-500">
                 {Math.round(previewKcal)} kcal
               </span>
@@ -147,14 +164,17 @@ function EntryRow({
     );
   }
 
-  const badge = !isFood ? MACRO_BADGES[initialMacro] : null;
+  const badge = !isFood && !isPortion ? MACRO_BADGES[initialMacro] : null;
 
   return (
     <li className="flex items-center justify-between gap-2 py-1.5 text-sm">
       <span className="flex min-w-0 flex-1 items-center gap-2 text-neutral-700">
-        <span className="text-lg shrink-0">{entry.food ? entry.food.icon : "📝"}</span>
+        <span className="text-lg shrink-0">{icon}</span>
         <span className="truncate">
           {name}
+          {isPortion && (
+            <span className="text-neutral-500"> · {formatPortions(entry.portions!)}</span>
+          )}
           {entry.food && (
             <span className="text-neutral-500">
               {" "}

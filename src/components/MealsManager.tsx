@@ -7,6 +7,8 @@ import type { Food } from "@/lib/types";
 import {
   DEFAULT_MEAL_ICON,
   MAX_MEAL_ITEMS,
+  MAX_SERVINGS,
+  MIN_SERVINGS,
   entryCalories,
   formatQuantity,
   templateCalories,
@@ -26,6 +28,9 @@ interface MealForm {
   id: string | null;
   name: string;
   icon: string;
+  portionable: boolean;
+  /** Porciones que rinde la receta; null = campo vacío. */
+  servings: number | null;
   items: ItemRow[];
 }
 
@@ -33,8 +38,13 @@ const EMPTY_FORM: MealForm = {
   id: null,
   name: "",
   icon: DEFAULT_MEAL_ICON,
+  portionable: false,
+  servings: null,
   items: [{ foodId: "", quantity: null }],
 };
+
+const validServings = (n: number | null) =>
+  n != null && Number.isInteger(n) && n >= MIN_SERVINGS && n <= MAX_SERVINGS;
 
 export default function MealsManager({
   foods,
@@ -54,7 +64,8 @@ export default function MealsManager({
     form != null &&
     (!form.name.trim() ||
       form.items.length === 0 ||
-      form.items.some((i) => i.foodId === "" || i.quantity == null || i.quantity <= 0));
+      form.items.some((i) => i.foodId === "" || i.quantity == null || i.quantity <= 0) ||
+      (form.portionable && !validServings(form.servings)));
 
   const formCalories = (form?.items ?? []).reduce((sum, item) => {
     const food = foodsById.get(item.foodId);
@@ -73,6 +84,8 @@ export default function MealsManager({
       id: meal.id,
       name: meal.name,
       icon: meal.icon,
+      portionable: meal.servings != null,
+      servings: meal.servings,
       items: meal.items.map((i) => ({ foodId: i.foodId, quantity: i.quantity })),
     });
   }
@@ -82,7 +95,11 @@ export default function MealsManager({
     if (!form) return;
     setError(null);
     if (incomplete) {
-      setError("Completa el nombre y elige un alimento y una cantidad en cada fila.");
+      setError(
+        form.portionable && !validServings(form.servings)
+          ? `Indica cuántas porciones rinde (un número entero entre ${MIN_SERVINGS} y ${MAX_SERVINGS}).`
+          : "Completa el nombre y elige un alimento y una cantidad en cada fila."
+      );
       return;
     }
 
@@ -90,7 +107,12 @@ export default function MealsManager({
     const res = await fetch(form.id ? `/api/meals/${form.id}` : "/api/meals", {
       method: form.id ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: form.name, icon: form.icon, items: form.items }),
+      body: JSON.stringify({
+        name: form.name,
+        icon: form.icon,
+        servings: form.portionable ? form.servings : null,
+        items: form.items,
+      }),
     }).catch(() => null);
     setSubmitting(false);
 
@@ -238,8 +260,54 @@ export default function MealsManager({
             )}
           </div>
 
+          <div className="flex flex-col gap-2 rounded-lg border border-neutral-100 bg-neutral-50 p-3">
+            <label className="flex items-center gap-2 text-sm font-medium text-neutral-700">
+              <input
+                type="checkbox"
+                checked={form.portionable}
+                onChange={(e) => setForm({ ...form, portionable: e.target.checked })}
+                className="h-4 w-4 shrink-0 accent-brand-600"
+              />
+              ¿Es una comida porcionable?
+            </label>
+            <p className="text-xs text-neutral-500">
+              Para recetas que rinden varias porciones (por ejemplo, 6 pancakes). Al cargarla solo
+              indicas cuántas porciones comiste.
+            </p>
+            {form.portionable && (
+              <label className="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
+                ¿Cuántas porciones rinde?
+                <input
+                  type="number"
+                  min={MIN_SERVINGS}
+                  max={MAX_SERVINGS}
+                  step={1}
+                  inputMode="numeric"
+                  value={form.servings ?? ""}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      servings: e.target.value === "" ? null : Number(e.target.value),
+                    })
+                  }
+                  className={`${INPUT_CLASS} w-20`}
+                  required
+                />
+              </label>
+            )}
+          </div>
+
           <p className="text-sm text-neutral-600">
             Total: <span className="font-semibold text-neutral-900">{Math.round(formCalories)} kcal</span>
+            {form.portionable && validServings(form.servings) && (
+              <span>
+                {" "}
+                · <span className="font-semibold text-neutral-900">
+                  {Math.round(formCalories / form.servings!)} kcal
+                </span>{" "}
+                por porción
+              </span>
+            )}
           </p>
 
           {error && <p className="text-sm text-danger-600">{error}</p>}
@@ -271,6 +339,12 @@ export default function MealsManager({
                   {Math.round(templateCalories(meal))} kcal
                 </span>
               </div>
+              {meal.servings != null && (
+                <p className="self-start rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-800">
+                  Rinde {meal.servings} porciones ·{" "}
+                  {Math.round(templateCalories(meal) / meal.servings)} kcal por porción
+                </p>
+              )}
               <ul className="flex flex-col divide-y divide-neutral-100 text-sm">
                 {meal.items.map((item) => (
                   <li key={item.id} className="flex justify-between gap-2 py-1 text-xs sm:text-sm">

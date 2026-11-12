@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Fraunces, Nunito } from "next/font/google";
 import Link from "next/link";
 import UserMenu from "@/components/auth/UserMenu";
-import { FlameIcon } from "@/components/icons";
+import { ChartIcon, FlameIcon } from "@/components/icons";
 import { getSession } from "@/lib/session";
 import "./globals.css";
 
@@ -72,6 +72,10 @@ export default async function RootLayout({
                 <nav className="flex items-center gap-0.5 sm:gap-1">
                   <Link href="/" className={NAV_LINK}>
                     Hoy
+                  </Link>
+                  <Link href="/stats" className={`${NAV_LINK} inline-flex items-center`} aria-label="Estadísticas">
+                    <ChartIcon size={16} className="sm:hidden" />
+                    <span className="hidden sm:inline">Estadísticas</span>
                   </Link>
                   <Link href="/foods" className={NAV_LINK}>
                     Alimentos

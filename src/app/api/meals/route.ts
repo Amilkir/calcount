@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
   if (!parsed.ok) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
-  const { name, icon, items } = parsed.data;
+  const { name, icon, servings, items } = parsed.data;
 
   const foodsError = await checkMealFoods(auth.user.id, items);
   if (foodsError) return foodsError;
@@ -41,6 +41,7 @@ export async function POST(request: NextRequest) {
       userId: auth.user.id,
       name,
       icon,
+      servings,
       items: { create: items.map((item, position) => ({ ...item, position })) },
     },
     include: MEAL_TEMPLATE_INCLUDE,

@@ -62,7 +62,6 @@ enum WorkoutType {
   STRENGTH
   HIIT
   SWIMMING
-  SPORTS
   OTHER
 }
 
@@ -218,6 +217,11 @@ model Profile {
   workoutMinutes  Int?
   workoutType     WorkoutType  @default(STRENGTH)
 
+  // Deportes que practica, aparte del entrenamiento regular. No suman a la meta base:
+  // se suman el día que se marcan. JSON: [{ "sport": "FOOTBALL", "minutes": 60, "perWeek": 2 }]
+  // (ver lib/sports.ts)
+  sports String @default("[]")
+
   // Condiciones fisiológicas
   physiologicalState PhysiologicalState @default(NONE)
   thyroidCondition   ThyroidCondition   @default(NONE)
@@ -233,6 +237,9 @@ model Profile {
 
   // Ajuste dinámico según el peso real
   adaptiveTdee Boolean @default(false)
+
+  // Preferencia: mostrar el gráfico de evolución del peso en Estadísticas.
+  showWeightChart Boolean @default(false)
 
   // Suplementos que toma a diario. JSON: ["CREATINE", "OMEGA_3", ...] (ver lib/supplements.ts)
   supplements String @default("[]")
@@ -283,6 +290,15 @@ model DailyLog {
   // JSON: suplementos del perfil al registrar el día y los que se marcaron como tomados.
   supplementsPlanned String   @default("[]")
   supplementsTaken   String   @default("[]")
+  // JSON: deportes hechos ese día con las kcal sumadas a la meta, ya ajustadas según el objetivo.
+  // [{ "sport": "FOOTBALL", "minutes": 60, "kcal": 420 }] (ver lib/sports.ts)
+  sportsDone         String   @default("[]")
+  // Metas vigentes ese día (sin el extra por deporte), para que las estadísticas comparen
+  // contra lo que correspondía entonces y no contra la meta actual.
+  goalCalories       Float?
+  proteinG           Float?
+  carbsG             Float?
+  fatG               Float?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
@@ -317,6 +333,8 @@ model MealTemplate {
   userId    String
   name      String
   icon      String
+  // Comida porcionable: cuántas porciones rinde la receta. null = se carga alimento por alimento.
+  servings  Int?
   createdAt DateTime           @default(now())
   updatedAt DateTime           @updatedAt
   items     MealTemplateItem[]
@@ -347,6 +365,13 @@ model FoodEntry {
   quantity        Float?
   freeDescription String?
   calories        Float
+  // Porciones de una comida porcionable (sin foodId; el nombre va en freeDescription).
+  // Se guardan los macros e ícono de lo comido para que editar la receta no cambie el historial.
+  portions        Float?
+  icon            String?
+  protein         Float?
+  carbs           Float?
+  fat             Float?
   date            String
   createdAt       DateTime @default(now())
 

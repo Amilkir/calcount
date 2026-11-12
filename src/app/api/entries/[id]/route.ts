@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { authorizeUser } from "@/lib/session";
-import { entryCalories } from "@/lib/meals";
+import { entryCalories, isValidPortion } from "@/lib/meals";
 import { isFiniteNumber, isNonEmptyString } from "@/lib/validate";
 
 type Context = { params: Promise<{ id: string }> };
@@ -9,6 +9,7 @@ type Context = { params: Promise<{ id: string }> };
 /**
  * Corrige un registro ya cargado. Alimento: `quantity` (se recalculan las calorías).
  * Alimento libre: `calories` y/o `freeDescription`.
+ * Comida porcionable: `portions` (se reescalan calorías y macros).
  */
 export async function PATCH(request: NextRequest, context: Context) {
   const { id } = await context.params;
@@ -24,9 +25,33 @@ export async function PATCH(request: NextRequest, context: Context) {
   }
 
   const body = ((await request.json().catch(() => null)) ?? {}) as Record<string, unknown>;
-  let data: { quantity?: number; calories?: number; freeDescription?: string };
+  let data: {
+    quantity?: number;
+    calories?: number;
+    freeDescription?: string;
+    portions?: number;
+    protein?: number | null;
+    carbs?: number | null;
+    fat?: number | null;
+  };
 
-  if (entry.food) {
+  if (entry.portions != null) {
+    // Comida porcionable: se reescalan las calorías y macros guardados al cargarla,
+    // así no depende de cómo esté hoy la receta.
+    const { portions } = body;
+    if (!isValidPortion(portions)) {
+      return NextResponse.json({ error: "Porciones inválidas." }, { status: 400 });
+    }
+    const factor = portions / entry.portions;
+    const scale = (v: number | null) => (v == null ? null : v * factor);
+    data = {
+      portions,
+      calories: entry.calories * factor,
+      protein: scale(entry.protein),
+      carbs: scale(entry.carbs),
+      fat: scale(entry.fat),
+    };
+  } else if (entry.food) {
     const { quantity } = body;
     if (!isFiniteNumber(quantity) || quantity <= 0) {
       return NextResponse.json({ error: "Cantidad inválida." }, { status: 400 });

@@ -29,11 +29,11 @@ export const BODY_TYPE_LABELS: Record<BodyType, string> = {
 };
 
 export const ACTIVITY_LEVEL_LABELS: Record<ActivityLevel, string> = {
-  SEDENTARY: "Sedentario (poco o ningún ejercicio)",
-  LIGHT: "Ligero (ejercicio 1-3 días/semana)",
-  MODERATE: "Moderado (ejercicio 3-5 días/semana)",
-  ACTIVE: "Activo (ejercicio 6-7 días/semana)",
-  VERY_ACTIVE: "Muy activo (ejercicio intenso a diario)",
+  SEDENTARY: "Sedentario (poco o ningún entrenamiento)",
+  LIGHT: "Ligero (entrenas 1-3 días/semana)",
+  MODERATE: "Moderado (entrenas 3-5 días/semana)",
+  ACTIVE: "Activo (entrenas 6-7 días/semana)",
+  VERY_ACTIVE: "Muy activo (entrenamiento intenso a diario)",
 };
 
 export const GOAL_LABELS: Record<Goal, string> = {
@@ -95,7 +95,6 @@ export const WORKOUT_TYPE_LABELS: Record<WorkoutType, string> = {
   STRENGTH: "Pesas / fuerza",
   HIIT: "HIIT / funcional",
   SWIMMING: "Natación",
-  SPORTS: "Deportes de equipo",
   OTHER: "Otro",
 };
 
@@ -145,9 +144,9 @@ export const BMR_FORMULA_DESCRIPTIONS: Record<BmrFormula, string> = {
 
 export const ACTIVITY_MODE_DESCRIPTIONS: Record<ActivityMode, string> = {
   SIMPLE:
-    "Multiplica tu metabolismo basal por un factor según cuántos días entrenas por semana (de 1,2 a 1,9). Es rápido, pero aproximado.",
+    "Multiplica tu metabolismo basal por un factor según cuántos días entrenas por semana (de 1,2 a 1,9), sin contar tus deportes. Es rápido, pero aproximado.",
   DETAILED:
-    "Suma por separado tu actividad diaria, los pasos por encima de 3 000 y las calorías de tus entrenamientos según tipo, duración y frecuencia. Más preciso si conoces esos datos.",
+    "Suma por separado tu actividad diaria, los pasos por encima de 3 000 y las calorías de tu entrenamiento regular (gimnasio, rutina) según tipo, duración y frecuencia. Tus deportes van aparte. Más preciso si conoces esos datos.",
 };
 
 export const MACRO_PRESET_DESCRIPTIONS: Record<MacroPreset, string> = {

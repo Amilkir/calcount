@@ -15,6 +15,7 @@ import type {
   WorkoutType,
 } from "@/generated/prisma/enums";
 import { decodeSupplements, type Supplement } from "./supplements";
+import { decodeSportPlan, type SportPlan } from "./sports";
 
 export interface ProfileFormValues {
   name: string;
@@ -44,6 +45,7 @@ export interface ProfileFormValues {
   workoutsPerWeek: number | null;
   workoutMinutes: number | null;
   workoutType: WorkoutType;
+  sports: SportPlan[];
 
   physiologicalState: PhysiologicalState;
   thyroidCondition: ThyroidCondition;
@@ -88,6 +90,7 @@ export const DEFAULT_PROFILE_VALUES: ProfileFormValues = {
   workoutsPerWeek: null,
   workoutMinutes: null,
   workoutType: "STRENGTH",
+  sports: [],
 
   physiologicalState: "NONE",
   thyroidCondition: "NONE",
@@ -111,5 +114,6 @@ export function profileToFormValues(profile: Profile): ProfileFormValues {
   }
   // En la base se guarda como JSON.
   values.supplements = decodeSupplements(profile.supplements);
+  values.sports = decodeSportPlan(profile.sports);
   return values;
 }

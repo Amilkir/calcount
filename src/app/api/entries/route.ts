@@ -3,7 +3,13 @@ import { prisma } from "@/lib/db";
 import { MealSlot } from "@/generated/prisma/enums";
 import { isEnumValue, isFiniteNumber, isNonEmptyString } from "@/lib/validate";
 import { authorizeProfile } from "@/lib/session";
-import { MEAL_TEMPLATE_INCLUDE, entryCalories } from "@/lib/meals";
+import { snapshotDay } from "@/lib/targets";
+import {
+  MEAL_TEMPLATE_INCLUDE,
+  entryCalories,
+  isValidPortion,
+  portionTotals,
+} from "@/lib/meals";
 
 export async function GET(request: NextRequest) {
   const profileId = request.nextUrl.searchParams.get("profileId");
@@ -46,6 +52,9 @@ export async function POST(request: NextRequest) {
   const auth = await authorizeProfile(profileId);
   if (!auth.ok) return auth.response;
 
+  // Deja registradas las metas vigentes del día, para las estadísticas.
+  await snapshotDay(auth.profile, date);
+
   // Varios alimentos de una vez (autocompletado): foods = [{ foodId, quantity }].
   if (body.foods !== undefined) {
     const raw: unknown = body.foods;
@@ -84,7 +93,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ count }, { status: 201 });
   }
 
-  // Comida guardada: se crea un registro por cada alimento de la plantilla.
+  // Comida guardada: se crea un registro por cada alimento de la plantilla
+  // (o uno solo con las porciones, si es porcionable).
   const { mealTemplateId } = body ?? {};
   if (mealTemplateId !== undefined) {
     if (!isNonEmptyString(mealTemplateId)) {
@@ -96,6 +106,34 @@ export async function POST(request: NextRequest) {
     });
     if (!template || template.items.length === 0) {
       return NextResponse.json({ error: "Comida no encontrada." }, { status: 404 });
+    }
+
+    // Comida porcionable: un solo registro con las porciones comidas y sus macros guardados.
+    if (template.servings != null) {
+      const { portions } = body;
+      if (!isValidPortion(portions)) {
+        return NextResponse.json(
+          { error: "Indica cuántas porciones comiste (de a media porción)." },
+          { status: 400 }
+        );
+      }
+      const totals = portionTotals({ ...template, servings: template.servings }, portions);
+      const entry = await prisma.foodEntry.create({
+        data: {
+          profileId,
+          mealSlot,
+          date,
+          freeDescription: template.name,
+          icon: template.icon,
+          portions,
+          calories: totals.calories,
+          protein: totals.protein,
+          carbs: totals.carbs,
+          fat: totals.fat,
+        },
+        include: { food: true },
+      });
+      return NextResponse.json(entry, { status: 201 });
     }
 
     // Opcional: cantidades ajustadas para este registro, [{ itemId, quantity }].
