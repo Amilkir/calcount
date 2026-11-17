@@ -3,7 +3,9 @@ import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 import path from "node:path";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  experimental: {
+    agentUpgrade: "security",
+  },
 };
 
 // Expone los bindings de Cloudflare (D1) a `next dev`.
