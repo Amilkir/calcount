@@ -82,7 +82,25 @@
 }
 
 @layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* Celular: todo el diseño usa rem, así que subir la base agranda la app sin tocar la distribución. */
+  @media (max-width: 639px) {
+    html {
+      font-size: 106.25%;
+    }
+
+    /* La barra superior ya va justa de ancho: se mantiene en su tamaño de antes. */
+    body > header {
+      zoom: 0.9412;
+    }
+  }
+
   body {
+    overflow-x: clip;
+    overflow-wrap: break-word;
     font-family: var(--font-sans), system-ui, sans-serif;
     background:
       radial-gradient(900px 420px at 95% -8%, var(--color-brand-100) 0%, transparent 60%),
@@ -109,6 +127,52 @@
   select,
   textarea {
     background-color: #fff;
+  }
+
+  /* Evita desbordes en pantallas angostas: las grillas sin columnas definidas crecen al
+     contenido más ancho, y los fieldset/campos tampoco encogen por defecto. */
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  fieldset,
+  label {
+    min-width: 0;
+  }
+
+  select,
+  input:not([type="checkbox"], [type="radio"]),
+  textarea {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  select {
+    text-overflow: ellipsis;
+  }
+
+  svg {
+    max-width: 100%;
+  }
+
+  /* Todo lo que se puede clicar muestra la mano (Tailwind v4 deja los botones con flecha). */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="switch"],
+  [role="option"],
+  [role="tab"],
+  summary,
+  select:not(:disabled),
+  label:has(> input:is([type="checkbox"], [type="radio"]):not(:disabled)),
+  input:is([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="date"], [type="time"]):not(:disabled),
+  a[href] {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  select:disabled,
+  input:disabled {
+    cursor: not-allowed;
   }
 
   input:focus-visible,
