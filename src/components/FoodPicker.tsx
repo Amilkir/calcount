@@ -3,12 +3,10 @@
 import { CheckIcon } from "./icons";
 import { useId, useMemo, useRef, useState } from "react";
 import type { Food } from "@/lib/types";
+import { normalizeText, sortByNameEs } from "@/lib/text";
 
 const MAX_RESULTS = 50;
 
-// Búsqueda sin distinguir mayúsculas ni tildes ("platano" encuentra "Plátano").
-const normalize = (text: string) =>
-  text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 /**
  * Selector de alimento con buscador. Vacío muestra "Seleccione…".
@@ -39,10 +37,12 @@ export default function FoodPicker({
   const selected = foods.find((f) => f.id === value) ?? null;
 
   const results = useMemo(() => {
-    const q = normalize(query.trim());
+    // Orden alfabético; búsqueda sin distinguir mayúsculas ni tildes ("atun" encuentra "Atún").
+    const q = normalizeText(query.trim());
+    const sorted = sortByNameEs(foods);
     const matches = q
-      ? foods.filter((f) => normalize(`${f.name} ${f.category}`).includes(q))
-      : foods;
+      ? sorted.filter((f) => normalizeText(`${f.name} ${f.category}`).includes(q))
+      : sorted;
     return matches.slice(0, MAX_RESULTS);
   }, [foods, query]);
 

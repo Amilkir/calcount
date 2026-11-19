@@ -1,5 +1,7 @@
 "use client";
 
+import DecimalInput from "./DecimalInput";
+import { normalizeText, sortByNameEs } from "@/lib/text";
 import { CheckIcon, CloseIcon } from "./icons";
 import Link from "next/link";
 import type { Remaining } from "@/lib/autofill";
@@ -86,10 +88,11 @@ export default function AddEntryModal({
   const [submitting, setSubmitting] = useState(false);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return foods;
-    return foods.filter(
-      (f) => f.name.toLowerCase().includes(q) || f.category.toLowerCase().includes(q)
+    const q = normalizeText(search.trim());
+    const sorted = sortByNameEs(foods);
+    if (!q) return sorted;
+    return sorted.filter(
+      (f) => normalizeText(f.name).includes(q) || normalizeText(f.category).includes(q)
     );
   }, [foods, search]);
 
@@ -327,13 +330,10 @@ export default function AddEntryModal({
 
               <label className="flex flex-wrap items-center gap-2 text-sm font-medium text-neutral-700">
                 ¿Cuántas porciones comiste?
-                <input
-                  type="number"
+                <DecimalInput
                   min={PORTION_STEP}
-                  step={PORTION_STEP}
-                  inputMode="decimal"
-                  value={portions ?? ""}
-                  onChange={(e) => setPortions(e.target.value === "" ? null : Number(e.target.value))}
+                  value={portions}
+                  onValueChange={setPortions}
                   aria-label="Porciones consumidas"
                   className="w-20 rounded-lg border border-neutral-300 px-2 py-1 text-sm"
                   autoFocus
@@ -414,16 +414,14 @@ export default function AddEntryModal({
                       >
                         {item.food.icon} {item.food.name}
                       </span>
-                      <input
-                        type="number"
+                      <DecimalInput
                         min={0.1}
-                        step="any"
-                        value={qty ?? ""}
+                        value={qty ?? null}
                         disabled={!included}
-                        onChange={(e) =>
+                        onValueChange={(next) =>
                           setMealQuantities((prev) => ({
                             ...prev,
-                            [item.id]: e.target.value === "" ? null : Number(e.target.value),
+                            [item.id]: next,
                           }))
                         }
                         aria-label={`Cantidad de ${item.food.name}`}
@@ -520,14 +518,10 @@ export default function AddEntryModal({
                       <span className="min-w-0 flex-1 truncate text-neutral-800">
                         {row.food.icon} {row.food.name}
                       </span>
-                      <input
-                        type="number"
+                      <DecimalInput
                         min={row.food.servingUnit === "UNIT" ? 0.5 : 1}
-                        step="any"
-                        inputMode="decimal"
-                        value={row.quantity ?? ""}
-                        onChange={(e) => {
-                          const value = e.target.value === "" ? null : Number(e.target.value);
+                        value={row.quantity ?? null}
+                        onValueChange={(value) => {
                           setPlate((prev) =>
                             prev.map((r) => (r.foodId === row.foodId ? { ...r, quantity: value } : r))
                           );
@@ -589,14 +583,11 @@ export default function AddEntryModal({
 
             <label className="flex flex-col gap-1">
               <span className="text-sm font-medium text-neutral-700">Calorías</span>
-              <input
-                type="number"
+              <DecimalInput
+                integer
                 min={1}
-                step={1}
-                value={freeCalories ?? ""}
-                onChange={(e) =>
-                  setFreeCalories(e.target.value === "" ? null : Number(e.target.value))
-                }
+                value={freeCalories}
+                onValueChange={setFreeCalories}
                 className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
                 required
               />

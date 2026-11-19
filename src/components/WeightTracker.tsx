@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { formatDateDisplay, toDateKey } from "@/lib/date";
+import DecimalInput from "./DecimalInput";
 
 interface WeightLogRow {
   id: string;
@@ -16,7 +17,7 @@ export default function WeightTracker({ profileId }: { profileId: string }) {
   const router = useRouter();
   const [latest, setLatest] = useState<WeightLogRow | null>(null);
   const [date, setDate] = useState(() => toDateKey(new Date()));
-  const [weight, setWeight] = useState("");
+  const [weight, setWeight] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -35,8 +36,8 @@ export default function WeightTracker({ profileId }: { profileId: string }) {
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    const weightKg = Number(weight);
-    if (!weight || !Number.isFinite(weightKg)) {
+    const weightKg = weight;
+    if (weightKg == null) {
       setError("Ingresa un peso válido.");
       return;
     }
@@ -52,7 +53,7 @@ export default function WeightTracker({ profileId }: { profileId: string }) {
       setError(data?.error ?? "No se pudo guardar el peso.");
       return;
     }
-    setWeight("");
+    setWeight(null);
     await load();
     router.refresh();
   }
@@ -82,15 +83,13 @@ export default function WeightTracker({ profileId }: { profileId: string }) {
         </label>
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium text-neutral-700">Peso (kg)</span>
-          <input
-            type="number"
-            step={0.1}
+          <DecimalInput
             min={20}
             max={400}
             value={weight}
-            onChange={(e) => setWeight(e.target.value)}
+            onValueChange={setWeight}
             className="w-full sm:w-28 rounded-lg border border-neutral-300 px-3 py-2 text-sm"
-            placeholder="Ej. 74.5"
+            placeholder="Ej. 74,5"
             required
           />
         </label>

@@ -1,5 +1,6 @@
 "use client";
 
+import DecimalInput from "./DecimalInput";
 import { CloseIcon } from "./icons";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -214,16 +215,10 @@ export default function MealsManager({
                   />
                   <div className="flex items-center justify-between sm:justify-start gap-2">
                     <label className="flex items-center gap-1">
-                      <input
-                        type="number"
+                      <DecimalInput
                         min={0.1}
-                        step="any"
-                        value={item.quantity ?? ""}
-                        onChange={(e) =>
-                          updateItem(index, {
-                            quantity: e.target.value === "" ? null : Number(e.target.value),
-                          })
-                        }
+                        value={item.quantity ?? null}
+                        onValueChange={(next) => updateItem(index, { quantity: next })}
                         aria-label={`Cantidad del alimento ${index + 1}`}
                         className={`${INPUT_CLASS} w-20 sm:w-24`}
                         required
@@ -277,19 +272,12 @@ export default function MealsManager({
             {form.portionable && (
               <label className="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
                 ¿Cuántas porciones rinde?
-                <input
-                  type="number"
+                <DecimalInput
+                  integer
                   min={MIN_SERVINGS}
                   max={MAX_SERVINGS}
-                  step={1}
-                  inputMode="numeric"
-                  value={form.servings ?? ""}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      servings: e.target.value === "" ? null : Number(e.target.value),
-                    })
-                  }
+                  value={form.servings ?? null}
+                  onValueChange={(next) => setForm({ ...form, servings: next })}
                   className={`${INPUT_CLASS} w-20`}
                   required
                 />
