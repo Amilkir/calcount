@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CheckIcon } from "./icons";
 import SportIcon from "./SportIcon";
+import DecimalInput from "./DecimalInput";
 import {
   MAX_SPORT_MINUTES,
   SPORT_LABELS,
@@ -22,32 +23,29 @@ function MinutesInput({
   minutes: number;
   onCommit: (minutes: number) => void;
 }) {
-  const [draft, setDraft] = useState<string>(String(minutes));
+  const [draft, setDraft] = useState<number | null>(minutes);
   const [prev, setPrev] = useState(minutes);
   if (prev !== minutes) {
     setPrev(minutes);
-    setDraft(String(minutes));
+    setDraft(minutes);
   }
 
   function commit() {
-    const value = Number(draft);
-    if (Number.isInteger(value) && value >= 1 && value <= MAX_SPORT_MINUTES) {
-      if (value !== minutes) onCommit(value);
+    if (draft != null && Number.isInteger(draft) && draft >= 1 && draft <= MAX_SPORT_MINUTES) {
+      if (draft !== minutes) onCommit(draft);
     } else {
-      setDraft(String(minutes));
+      setDraft(minutes);
     }
   }
 
   return (
     <label className="flex items-center gap-1 text-xs text-neutral-500">
-      <input
-        type="number"
+      <DecimalInput
+        integer
         min={1}
         max={MAX_SPORT_MINUTES}
-        step={1}
-        inputMode="numeric"
         value={draft}
-        onChange={(e) => setDraft(e.target.value)}
+        onValueChange={setDraft}
         onBlur={commit}
         onKeyDown={(e) => {
           if (e.key === "Enter") {

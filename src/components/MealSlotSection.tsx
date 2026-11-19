@@ -1,5 +1,6 @@
 "use client";
 
+import DecimalInput from "./DecimalInput";
 import { CheckIcon, CloseIcon, PencilIcon } from "./icons";
 import { useState } from "react";
 import type { FoodEntryWithFood } from "@/lib/types";
@@ -105,12 +106,10 @@ function EntryRow({
               </select>
             )}
             <span className="flex items-center gap-1">
-              <input
-                type="number"
+              <DecimalInput
                 min={isPortion ? PORTION_STEP : 0.1}
-                step={isPortion ? PORTION_STEP : "any"}
-                value={value ?? ""}
-                onChange={(e) => setValue(e.target.value === "" ? null : Number(e.target.value))}
+                value={value}
+                onValueChange={setValue}
                 onKeyDown={(e) => {
                   if (e.key === "Escape") {
                     setValue(initial);

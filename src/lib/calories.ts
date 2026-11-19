@@ -347,7 +347,13 @@ export function calculateCalorieTargets(input: CalorieInput): CalorieTargets {
   let weeksToTarget: number | null = null;
   if (input.targetWeightKg != null && input.targetWeightKg > 0) {
     const delta = input.targetWeightKg - weightKg;
-    if (Math.abs(delta) < 0.05) {
+    // En mantenimiento no hay dirección de cambio: un objetivo cercano al peso
+    // actual (ruido normal de pesaje) se considera alcanzado, no incoherente.
+    const maintenanceBandKg = Math.max(1, weightKg * 0.015);
+    if (
+      Math.abs(delta) < 0.05 ||
+      (goal === "MAINTENANCE" && Math.abs(delta) <= maintenanceBandKg)
+    ) {
       weeksToTarget = 0;
     } else if (weeklyChangeKg !== 0 && Math.sign(delta) === Math.sign(weeklyChangeKg)) {
       weeksToTarget = Math.abs(delta / weeklyChangeKg);

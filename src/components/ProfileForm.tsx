@@ -1,5 +1,7 @@
 "use client";
 
+import DecimalInput from "./DecimalInput";
+import { compareEs } from "@/lib/text";
 import { AlertIcon, CheckIcon, CloseIcon } from "./icons";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -98,18 +100,14 @@ function NumberField({
   optional?: boolean;
   min?: number;
   max?: number;
-  step?: number;
+  integer?: boolean;
   placeholder?: string;
 }) {
   return (
     <Field label={optional ? `${label} (opcional)` : label} hint={hint}>
-      <input
-        type="number"
-        value={value ?? ""}
-        onChange={(e) => {
-          const raw = e.target.value;
-          onChange(raw === "" ? null : Number(raw));
-        }}
+      <DecimalInput
+        value={value}
+        onValueChange={onChange}
         className={INPUT_CLASS}
         required={!optional}
         {...inputProps}
@@ -364,6 +362,7 @@ export default function ProfileForm({
 
         <NumberField
           label="Edad (años)"
+          integer
           value={values.age}
           onChange={(v) => update("age", v ?? 0)}
           min={1}
@@ -382,7 +381,6 @@ export default function ProfileForm({
           onChange={(v) => update("weightKg", v ?? 0)}
           min={20}
           max={400}
-          step={0.1}
         />
       </Section>
 
@@ -397,7 +395,6 @@ export default function ProfileForm({
           optional
           min={3}
           max={60}
-          step={0.1}
           placeholder="Ej. 22"
           hint="Si lo ingresas, tiene prioridad sobre la estimación por medidas."
         />
@@ -408,7 +405,6 @@ export default function ProfileForm({
           optional
           min={10}
           max={80}
-          step={0.1}
         />
         <NumberField
           label="Cintura (cm)"
@@ -417,7 +413,6 @@ export default function ProfileForm({
           optional
           min={30}
           max={250}
-          step={0.1}
           hint="Mídela a la altura del ombligo."
         />
         {isFemale && (
@@ -428,7 +423,6 @@ export default function ProfileForm({
             optional
             min={30}
             max={250}
-            step={0.1}
           />
         )}
         <p className="text-sm text-neutral-600 sm:col-span-2">
@@ -476,12 +470,12 @@ export default function ProfileForm({
             />
             <NumberField
               label="Pasos diarios"
+              integer
               value={values.dailySteps}
               onChange={(v) => update("dailySteps", v)}
               optional
               min={0}
               max={60000}
-              step={500}
               hint="Se cuentan los pasos por encima de 3 000."
             />
             <SelectField
@@ -493,6 +487,7 @@ export default function ProfileForm({
             />
             <NumberField
               label="Entrenamientos por semana"
+              integer
               value={values.workoutsPerWeek}
               onChange={(v) => update("workoutsPerWeek", v)}
               optional
@@ -501,12 +496,12 @@ export default function ProfileForm({
             />
             <NumberField
               label="Minutos por sesión"
+              integer
               value={values.workoutMinutes}
               onChange={(v) => update("workoutMinutes", v)}
               optional
               min={0}
               max={300}
-              step={5}
             />
           </>
         )}
@@ -558,13 +553,12 @@ export default function ProfileForm({
                 </div>
                 <div className="flex items-center gap-2">
                   <label className="flex items-center gap-1 text-sm text-neutral-600">
-                    <input
-                      type="number"
+                    <DecimalInput
+                      integer
                       min={1}
                       max={MAX_SPORT_MINUTES}
-                      step={1}
-                      value={row.minutes || ""}
-                      onChange={(e) => updateSport(index, { minutes: Number(e.target.value) })}
+                      value={row.minutes || null}
+                      onValueChange={(next) => updateSport(index, { minutes: next ?? 0 })}
                       aria-label={`Minutos por sesión del deporte ${index + 1}`}
                       className={`${INPUT_CLASS} w-20`}
                       required
@@ -572,13 +566,12 @@ export default function ProfileForm({
                     min
                   </label>
                   <label className="flex items-center gap-1 text-sm text-neutral-600">
-                    <input
-                      type="number"
+                    <DecimalInput
+                      integer
                       min={1}
                       max={14}
-                      step={1}
-                      value={row.perWeek || ""}
-                      onChange={(e) => updateSport(index, { perWeek: Number(e.target.value) })}
+                      value={row.perWeek || null}
+                      onValueChange={(next) => updateSport(index, { perWeek: next ?? 0 })}
                       aria-label={`Veces por semana del deporte ${index + 1}`}
                       className={`${INPUT_CLASS} w-16`}
                       required
@@ -651,7 +644,6 @@ export default function ProfileForm({
           optional
           min={20}
           max={400}
-          step={0.1}
         />
         {hasGoalAdjustment && (
           <>
@@ -672,8 +664,7 @@ export default function ProfileForm({
               optional
               min={0.05}
               max={1.5}
-              step={0.05}
-              placeholder="Ej. 0.5"
+              placeholder="Ej. 0,5"
               hint="Si lo indicas, reemplaza al porcentaje."
             />
           </>
@@ -739,7 +730,6 @@ export default function ProfileForm({
             onChange={(v) => update("proteinPerKg", v)}
             min={0.8}
             max={3.5}
-            step={0.1}
           />
         )}
         <SelectField
@@ -759,7 +749,6 @@ export default function ProfileForm({
           optional
           min={0}
           max={24}
-          step={0.5}
         />
         <Field label="Nivel de estrés (opcional)">
           <select
@@ -809,9 +798,9 @@ export default function ProfileForm({
                   <option value="" disabled>
                     Seleccione…
                   </option>
-                  {SUPPLEMENTS.filter(
-                    (s) => s === supplement || !supplementRows.includes(s)
-                  ).map((s) => (
+                  {SUPPLEMENTS.filter((s) => s === supplement || !supplementRows.includes(s))
+                    .sort((a, b) => compareEs(SUPPLEMENT_LABELS[a], SUPPLEMENT_LABELS[b]))
+                    .map((s) => (
                     <option key={s} value={s}>
                       {SUPPLEMENT_LABELS[s]}
                     </option>

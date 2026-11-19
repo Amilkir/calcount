@@ -1,5 +1,6 @@
 "use client";
 
+import DecimalInput from "./DecimalInput";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import type { Food } from "@/lib/types";
@@ -281,17 +282,10 @@ export default function FoodsManager({ foods }: { foods: Food[] }) {
             <span className="text-sm font-medium text-neutral-700">
               Calorías ({SERVING_UNIT_LABELS[form.servingUnit]})
             </span>
-            <input
-              type="number"
+            <DecimalInput
               min={0.1}
-              step={0.1}
-              value={form.calories ?? ""}
-              onChange={(e) =>
-                setForm((f) => ({
-                  ...f,
-                  calories: e.target.value === "" ? null : Number(e.target.value),
-                }))
-              }
+              value={form.calories}
+              onValueChange={(next) => setForm((f) => ({ ...f, calories: next }))}
               placeholder="Ej. 120"
               className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
               required
@@ -304,17 +298,10 @@ export default function FoodsManager({ foods }: { foods: Food[] }) {
                 <span className="text-sm font-medium text-neutral-700">
                   {label} (opcional)
                 </span>
-                <input
-                  type="number"
+                <DecimalInput
                   min={0}
-                  step={0.1}
-                  value={form[key] ?? ""}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      [key]: e.target.value === "" ? null : Number(e.target.value),
-                    }))
-                  }
+                  value={form[key] ?? null}
+                  onValueChange={(next) => setForm((f) => ({ ...f, [key]: next }))}
                   className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
                 />
               </label>
@@ -446,17 +433,10 @@ export default function FoodsManager({ foods }: { foods: Food[] }) {
             <span className="text-sm font-medium text-neutral-700">
               Calorías ({SERVING_UNIT_LABELS[editForm.servingUnit]})
             </span>
-            <input
-              type="number"
+            <DecimalInput
               min={0.1}
-              step={0.1}
-              value={editForm.calories ?? ""}
-              onChange={(e) =>
-                setEditForm((f) => ({
-                  ...f,
-                  calories: e.target.value === "" ? null : Number(e.target.value),
-                }))
-              }
+              value={editForm.calories}
+              onValueChange={(next) => setEditForm((f) => ({ ...f, calories: next }))}
               placeholder="Ej. 120"
               className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
               required
@@ -469,17 +449,10 @@ export default function FoodsManager({ foods }: { foods: Food[] }) {
                 <span className="text-sm font-medium text-neutral-700">
                   {label} (opcional)
                 </span>
-                <input
-                  type="number"
+                <DecimalInput
                   min={0}
-                  step={0.1}
-                  value={editForm[key] ?? ""}
-                  onChange={(e) =>
-                    setEditForm((f) => ({
-                      ...f,
-                      [key]: e.target.value === "" ? null : Number(e.target.value),
-                    }))
-                  }
+                  value={editForm[key] ?? null}
+                  onValueChange={(next) => setEditForm((f) => ({ ...f, [key]: next }))}
                   className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
                 />
               </label>

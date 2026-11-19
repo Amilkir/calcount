@@ -292,9 +292,6 @@ export default function Dashboard({
           <h1 className="text-2xl font-semibold">{profile.name}</h1>
           <p className="text-sm capitalize text-neutral-500">{formatDateDisplay(dateKey)}</p>
         </div>
-        <Link href="/profile" className="btn-secondary shrink-0">
-          Ver perfil
-        </Link>
       </div>
 
       {!isToday && (
