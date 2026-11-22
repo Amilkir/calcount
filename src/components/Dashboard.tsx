@@ -239,6 +239,15 @@ export default function Dashboard({
             ? { ...base, mealTemplateId: payload.mealTemplateId, portions: payload.portions }
             : payload.kind === "batch"
             ? { ...base, foods: payload.foods }
+            : payload.kind === "custom"
+            ? {
+                ...base,
+                freeDescription: payload.description,
+                calories: payload.calories,
+                protein: payload.protein,
+                carbs: payload.carbs,
+                fat: payload.fat,
+              }
             : {
                 ...base,
                 freeDescription: formatFreeDescription(payload.description, payload.macro),

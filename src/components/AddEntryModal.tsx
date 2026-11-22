@@ -20,18 +20,37 @@ import {
   type MealTemplateWithItems,
 } from "@/lib/meals";
 
+type CustomMacros = { protein: number | null; carbs: number | null; fat: number | null };
+const CUSTOM_MACRO_FIELDS: { key: keyof CustomMacros; label: string }[] = [
+  { key: "protein", label: "Proteínas (g)" },
+  { key: "carbs", label: "Carbos (g)" },
+  { key: "fat", label: "Grasas (g)" },
+];
+
 // La API acepta hasta 20 alimentos por envío.
 const MAX_PLATE = 20;
 
 export type NewEntryPayload =
   | { kind: "food"; foodId: string; quantity: number }
   | { kind: "free"; description: string; calories: number; macro: PredominantMacro }
+  // Personalizado: todo escrito a mano, no se calcula nada.
+  | {
+      kind: "custom";
+      description: string;
+      calories: number;
+      protein: number;
+      carbs: number;
+      fat: number;
+    }
   | { kind: "meal"; mealTemplateId: string; items: { itemId: string; quantity: number }[] }
   | { kind: "portion"; mealTemplateId: string; portions: number }
   | { kind: "batch"; foods: { foodId: string; quantity: number }[] };
 
+// "CUSTOM": los macros se escriben a mano y no se calcula nada.
+type FreeMacroChoice = PredominantMacro | "CUSTOM";
+
 const FREE_MACRO_OPTIONS: {
-  key: PredominantMacro;
+  key: FreeMacroChoice;
   label: string;
   icon: string;
   desc: string;
@@ -60,6 +79,12 @@ const FREE_MACRO_OPTIONS: {
     icon: "🍔",
     desc: "Comida permitida: se suma a las calorías del día, sin asignarse a un macro específico.",
   },
+  {
+    key: "CUSTOM",
+    label: "Custom",
+    icon: "✏️",
+    desc: "Escribe tus macros: se suman tal cual, sin calcular nada.",
+  },
 ];
 
 export default function AddEntryModal({
@@ -84,7 +109,12 @@ export default function AddEntryModal({
   const [plate, setPlate] = useState<{ foodId: string; quantity: number | null }[]>([]);
   const [description, setDescription] = useState("");
   const [freeCalories, setFreeCalories] = useState<number | null>(null);
-  const [freeMacro, setFreeMacro] = useState<PredominantMacro>("CHEAT_MEAL");
+  const [freeMacro, setFreeMacro] = useState<FreeMacroChoice>("CHEAT_MEAL");
+  const [customMacros, setCustomMacros] = useState<CustomMacros>({
+    protein: null,
+    carbs: null,
+    fat: null,
+  });
   const [submitting, setSubmitting] = useState(false);
 
   const filtered = useMemo(() => {
@@ -198,12 +228,23 @@ export default function AddEntryModal({
     e.preventDefault();
     if (freeInvalid || freeCalories == null) return;
     setSubmitting(true);
-    await onSubmit({
-      kind: "free",
-      description: description.trim(),
-      calories: freeCalories,
-      macro: freeMacro,
-    });
+    await onSubmit(
+      freeMacro === "CUSTOM"
+        ? {
+            kind: "custom",
+            description: description.trim(),
+            calories: freeCalories,
+            protein: customMacros.protein ?? 0,
+            carbs: customMacros.carbs ?? 0,
+            fat: customMacros.fat ?? 0,
+          }
+        : {
+            kind: "free",
+            description: description.trim(),
+            calories: freeCalories,
+            macro: freeMacro,
+          }
+    );
     setSubmitting(false);
   }
 
@@ -597,7 +638,7 @@ export default function AddEntryModal({
               <span className="text-sm font-medium text-neutral-700">
                 Macronutriente predominante / Tipo
               </span>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
                 {FREE_MACRO_OPTIONS.map((item) => {
                   const isSelected = freeMacro === item.key;
                   return (
@@ -621,6 +662,23 @@ export default function AddEntryModal({
                 {FREE_MACRO_OPTIONS.find((o) => o.key === freeMacro)?.desc}
               </p>
             </div>
+
+            {freeMacro === "CUSTOM" && (
+              <div className="grid grid-cols-3 gap-2">
+                {CUSTOM_MACRO_FIELDS.map(({ key, label }) => (
+                  <label key={key} className="flex flex-col gap-1">
+                    <span className="text-sm font-medium text-neutral-700">{label}</span>
+                    <DecimalInput
+                      min={0}
+                      placeholder="0"
+                      value={customMacros[key]}
+                      onValueChange={(v) => setCustomMacros((m) => ({ ...m, [key]: v }))}
+                      className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                    />
+                  </label>
+                ))}
+              </div>
+            )}
 
             <button
               type="submit"

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { MealSlot } from "@/generated/prisma/enums";
-import { isEnumValue, isFiniteNumber, isNonEmptyString } from "@/lib/validate";
+import { isEnumValue, isFiniteNumber, isNonEmptyString, parseMacros } from "@/lib/validate";
 import { authorizeProfile } from "@/lib/session";
 import { snapshotDay } from "@/lib/targets";
 import {
@@ -175,6 +175,11 @@ export async function POST(request: NextRequest) {
   }
 
   if (isNonEmptyString(freeDescription)) {
+    // Macros opcionales ("Personalizado"): se guardan tal cual, sin calcular nada.
+    const macros = parseMacros(body);
+    if (!macros.ok) {
+      return NextResponse.json({ error: macros.error }, { status: 400 });
+    }
     const { calories } = body ?? {};
     if (!isFiniteNumber(calories) || calories <= 0) {
       return NextResponse.json(
@@ -190,6 +195,7 @@ export async function POST(request: NextRequest) {
         date,
         freeDescription: freeDescription.trim(),
         calories,
+        ...macros.data,
       },
       include: { food: true },
     });

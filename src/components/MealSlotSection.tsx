@@ -7,6 +7,7 @@ import type { FoodEntryWithFood } from "@/lib/types";
 import { PORTION_STEP, entryCalories, formatPortions, isValidPortion } from "@/lib/meals";
 import {
   formatFreeDescription,
+  isCustomEntry,
   parseFreeDescription,
   type PredominantMacro,
 } from "@/lib/macros";
@@ -26,6 +27,11 @@ const MACRO_BADGES: Record<
   CHEAT_MEAL: { label: "Cheat Meal", className: "bg-neutral-100 text-neutral-600 border-neutral-200" },
 };
 
+const CUSTOM_BADGE = {
+  label: "Custom",
+  className: "bg-violet-50 text-violet-700 border-violet-200",
+};
+
 function EntryRow({
   entry,
   onDelete,
@@ -38,6 +44,8 @@ function EntryRow({
   const isFood = entry.food != null;
   // Porciones de una comida porcionable: un solo registro con el nombre de la comida.
   const isPortion = entry.portions != null;
+  // Personalizado: macros escritos a mano. Al editar solo cambian las calorías, los macros se quedan igual.
+  const isCustom = isCustomEntry(entry);
   const { description: freeDesc, macro: initialMacro } = parseFreeDescription(entry.freeDescription);
   const name = isFood ? entry.food!.name : isPortion ? (entry.freeDescription ?? "") : freeDesc;
   const icon = entry.food ? entry.food.icon : isPortion ? (entry.icon ?? "🍽️") : "📝";
@@ -62,7 +70,7 @@ function EntryRow({
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (!valid) return;
-    if (value === initial && (isFood || isPortion || editMacro === initialMacro)) {
+    if (value === initial && (isFood || isPortion || isCustom || editMacro === initialMacro)) {
       setEditing(false);
       return;
     }
@@ -72,6 +80,8 @@ function EntryRow({
       ? { quantity: value! }
       : isPortion
         ? { portions: value! }
+        : isCustom
+        ? { calories: value! }
         : {
           calories: value!,
           freeDescription: formatFreeDescription(freeDesc, editMacro),
@@ -92,7 +102,7 @@ function EntryRow({
             <span className="truncate font-medium">{name}</span>
           </span>
           <div className="flex flex-wrap items-center gap-2">
-            {!isFood && !isPortion && (
+            {!isFood && !isPortion && !isCustom && (
               <select
                 value={editMacro}
                 onChange={(e) => setEditMacro(e.target.value as PredominantMacro)}
@@ -163,7 +173,7 @@ function EntryRow({
     );
   }
 
-  const badge = !isFood && !isPortion ? MACRO_BADGES[initialMacro] : null;
+  const badge = isCustom ? CUSTOM_BADGE : !isFood && !isPortion ? MACRO_BADGES[initialMacro] : null;
 
   return (
     <li className="flex items-center justify-between gap-2 py-1.5 text-sm">
@@ -173,6 +183,13 @@ function EntryRow({
           {name}
           {isPortion && (
             <span className="text-neutral-500"> · {formatPortions(entry.portions!)}</span>
+          )}
+          {isCustom && (
+            <span className="text-neutral-500">
+              {" "}
+              · P {Math.round(entry.protein ?? 0)} · C {Math.round(entry.carbs ?? 0)} · G{" "}
+              {Math.round(entry.fat ?? 0)} g
+            </span>
           )}
           {entry.food && (
             <span className="text-neutral-500">
