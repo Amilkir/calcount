@@ -38,8 +38,13 @@ export interface DayMacros extends MacroGrams {
   estimated: boolean;
 }
 
-const hasMacros = (food: NonNullable<FoodEntryWithFood["food"]>) =>
-  food.protein != null || food.carbs != null || food.fat != null;
+const hasMacros = (item: Partial<Record<keyof MacroGrams, number | null>>) =>
+  item.protein != null || item.carbs != null || item.fat != null;
+
+/** Registro "Personalizado": sin alimento ni porciones, con macros escritos a mano. */
+export function isCustomEntry(entry: FoodEntryWithFood): boolean {
+  return entry.food == null && entry.portions == null && hasMacros(entry);
+}
 
 /** Gramos de cada macro de un registro: reales si el alimento los tiene, estimados por tipo si no. */
 export function entryMacros(entry: FoodEntryWithFood): MacroGrams & {
@@ -57,6 +62,15 @@ export function entryMacros(entry: FoodEntryWithFood): MacroGrams & {
 
   const food = entry.food;
   if (!food) {
+    // Personalizado: los macros se escribieron a mano y se usan tal cual.
+    if (isCustomEntry(entry)) {
+      return {
+        protein: entry.protein ?? 0,
+        carbs: entry.carbs ?? 0,
+        fat: entry.fat ?? 0,
+        kind: "exact",
+      };
+    }
     const { macro } = parseFreeDescription(entry.freeDescription);
     const kcal = entry.calories;
     if (macro === "PROTEINAS") {
