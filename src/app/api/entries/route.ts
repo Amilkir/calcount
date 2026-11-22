@@ -7,6 +7,8 @@ import { snapshotDay } from "@/lib/targets";
 import {
   MEAL_TEMPLATE_INCLUDE,
   entryCalories,
+  gramsToPortions,
+  isValidCookedGrams,
   isValidPortion,
   portionTotals,
 } from "@/lib/meals";
@@ -109,15 +111,44 @@ export async function POST(request: NextRequest) {
     }
 
     // Comida porcionable: un solo registro con las porciones comidas y sus macros guardados.
-    if (template.servings != null) {
-      const { portions } = body;
-      if (!isValidPortion(portions)) {
-        return NextResponse.json(
-          { error: "Indica cuántas porciones comiste (de a media porción)." },
-          { status: 400 }
-        );
+    // También se puede cargar por gramos cocidos si la comida tiene su peso cocido
+    // (rinda o no porciones).
+    if (template.servings != null || template.cookedWeight != null) {
+      const servings = template.servings;
+      let portions: number;
+      let cookedGrams: number | null = null;
+      if (body.cookedGrams !== undefined) {
+        if (template.cookedWeight == null) {
+          return NextResponse.json(
+            { error: "Esta comida no tiene peso cocido; agrégalo en Comidas." },
+            { status: 400 }
+          );
+        }
+        if (!isValidCookedGrams(body.cookedGrams)) {
+          return NextResponse.json(
+            { error: "Indica cuántos gramos cocidos comiste." },
+            { status: 400 }
+          );
+        }
+        const grams: number = body.cookedGrams;
+        cookedGrams = grams;
+        portions = gramsToPortions({ servings, cookedWeight: template.cookedWeight }, grams);
+      } else {
+        if (servings == null) {
+          return NextResponse.json(
+            { error: "Indica cuántos gramos cocidos comiste." },
+            { status: 400 }
+          );
+        }
+        if (!isValidPortion(body.portions)) {
+          return NextResponse.json(
+            { error: "Indica cuántas porciones comiste (de a media porción)." },
+            { status: 400 }
+          );
+        }
+        portions = body.portions;
       }
-      const totals = portionTotals({ ...template, servings: template.servings }, portions);
+      const totals = portionTotals(template, portions);
       const entry = await prisma.foodEntry.create({
         data: {
           profileId,
@@ -126,6 +157,7 @@ export async function POST(request: NextRequest) {
           freeDescription: template.name,
           icon: template.icon,
           portions,
+          quantity: cookedGrams,
           calories: totals.calories,
           protein: totals.protein,
           carbs: totals.carbs,

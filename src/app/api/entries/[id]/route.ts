@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { authorizeUser } from "@/lib/session";
-import { entryCalories, isValidPortion } from "@/lib/meals";
+import { entryCalories, isValidCookedGrams, isValidPortion } from "@/lib/meals";
 import { isFiniteNumber, isNonEmptyString } from "@/lib/validate";
 
 type Context = { params: Promise<{ id: string }> };
@@ -9,7 +9,8 @@ type Context = { params: Promise<{ id: string }> };
 /**
  * Corrige un registro ya cargado. Alimento: `quantity` (se recalculan las calorías).
  * Alimento libre: `calories` y/o `freeDescription`.
- * Comida porcionable: `portions` (se reescalan calorías y macros).
+ * Comida porcionable: `portions` (se reescalan calorías y macros), o `quantity` en gramos
+ * cocidos si se cargó por peso.
  */
 export async function PATCH(request: NextRequest, context: Context) {
   const { id } = await context.params;
@@ -35,7 +36,23 @@ export async function PATCH(request: NextRequest, context: Context) {
     fat?: number | null;
   };
 
-  if (entry.portions != null) {
+  if (entry.portions != null && entry.quantity != null) {
+    // Comida porcionable cargada por peso cocido: se edita en gramos y se reescala todo.
+    const { quantity } = body;
+    if (!isValidCookedGrams(quantity)) {
+      return NextResponse.json({ error: "Gramos inválidos." }, { status: 400 });
+    }
+    const factor = quantity / entry.quantity;
+    const scale = (v: number | null) => (v == null ? null : v * factor);
+    data = {
+      quantity,
+      portions: entry.portions * factor,
+      calories: entry.calories * factor,
+      protein: scale(entry.protein),
+      carbs: scale(entry.carbs),
+      fat: scale(entry.fat),
+    };
+  } else if (entry.portions != null) {
     // Comida porcionable: se reescalan las calorías y macros guardados al cargarla,
     // así no depende de cómo esté hoy la receta.
     const { portions } = body;

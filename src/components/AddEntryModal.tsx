@@ -13,7 +13,12 @@ import { foodMacrosPerServing, type PredominantMacro } from "@/lib/macros";
 import {
   PORTION_STEP,
   entryCalories,
+  formatGrams,
   formatPortions,
+  gramsPerServing,
+  gramsToPortions,
+  isValidCookedGrams,
+  kcalPer100Cooked,
   isValidPortion,
   portionTotals,
   templateCalories,
@@ -44,6 +49,8 @@ export type NewEntryPayload =
     }
   | { kind: "meal"; mealTemplateId: string; items: { itemId: string; quantity: number }[] }
   | { kind: "portion"; mealTemplateId: string; portions: number }
+  // Comida porcionable con peso cocido: gramos cocidos que se comieron.
+  | { kind: "portion"; mealTemplateId: string; cookedGrams: number }
   | { kind: "batch"; foods: { foodId: string; quantity: number }[] };
 
 // "CUSTOM": los macros se escriben a mano y no se calcula nada.
@@ -178,25 +185,47 @@ export default function AddEntryModal({
   const [mealExcluded, setMealExcluded] = useState<Set<string>>(new Set());
   // Comida porcionable: cuántas porciones se comieron (null = campo vacío).
   const [portions, setPortions] = useState<number | null>(1);
+  // Comida con peso cocido: se puede cargar por porciones o por gramos cocidos.
+  const [byWeight, setByWeight] = useState(false);
+  const [cookedGrams, setCookedGrams] = useState<number | null>(null);
 
   function selectMeal(meal: MealTemplateWithItems) {
     setSelectedMealId(meal.id);
     setMealQuantities(Object.fromEntries(meal.items.map((i) => [i.id, i.quantity])));
     setMealExcluded(new Set());
     setPortions(1);
+    setByWeight(meal.cookedWeight != null);
+    setCookedGrams(null);
   }
 
+  // Se carga como un solo registro si rinde porciones o si se pesa ya cocida.
   const portionable =
-    selectedMeal?.servings != null ? { ...selectedMeal, servings: selectedMeal.servings } : null;
-  const portionsValid = isValidPortion(portions);
+    selectedMeal && (selectedMeal.servings != null || selectedMeal.cookedWeight != null)
+      ? selectedMeal
+      : null;
+  const hasServings = portionable?.servings != null;
+  const cookedWeight = portionable?.cookedWeight ?? null;
+  const weighing = byWeight && cookedWeight != null;
+  const portionsValid = weighing ? isValidCookedGrams(cookedGrams) : isValidPortion(portions);
   const portionPreview =
-    portionable && portionsValid ? portionTotals(portionable, portions as number) : null;
+    portionable && portionsValid
+      ? portionTotals(
+          portionable,
+          weighing
+            ? gramsToPortions({ servings: portionable.servings, cookedWeight }, cookedGrams as number)
+            : (portions as number)
+        )
+      : null;
 
   async function handleSubmitPortions(e: React.FormEvent) {
     e.preventDefault();
     if (!portionable || !portionsValid) return;
     setSubmitting(true);
-    await onSubmit({ kind: "portion", mealTemplateId: portionable.id, portions: portions as number });
+    await onSubmit(
+      weighing
+        ? { kind: "portion", mealTemplateId: portionable.id, cookedGrams: cookedGrams as number }
+        : { kind: "portion", mealTemplateId: portionable.id, portions: portions as number }
+    );
     setSubmitting(false);
   }
 
@@ -338,12 +367,16 @@ export default function AddEntryModal({
                     <span className="block truncate text-xs text-neutral-500">
                       {meal.servings != null
                         ? `Rinde ${meal.servings} porciones`
-                        : meal.items.map((i) => i.food.name).join(", ")}
+                        : meal.cookedWeight != null
+                          ? `Se pesa cocida · ${formatGrams(meal.cookedWeight)} en total`
+                          : meal.items.map((i) => i.food.name).join(", ")}
                     </span>
                   </span>
                   <span className="shrink-0 whitespace-nowrap text-xs text-neutral-500">
                     {meal.servings != null
                       ? `${Math.round(templateCalories(meal) / meal.servings)} kcal/porción`
+                      : meal.cookedWeight != null
+                        ? `${Math.round(kcalPer100Cooked(templateCalories(meal), meal.cookedWeight))} kcal/100 g`
                       : `${Math.round(templateCalories(meal))} kcal`}
                   </span>
                 </button>
@@ -356,8 +389,22 @@ export default function AddEntryModal({
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium">{portionable.name}</p>
                   <p className="text-xs text-neutral-500">
-                    Rinde {portionable.servings} porciones ·{" "}
-                    {Math.round(templateCalories(portionable) / portionable.servings)} kcal por porción
+                    {hasServings ? (
+                      <>
+                        Rinde {portionable.servings} porciones ·{" "}
+                        {Math.round(templateCalories(portionable) / portionable.servings!)} kcal por
+                        porción
+                        {gramsPerServing(portionable) != null && (
+                          <> · {formatGrams(gramsPerServing(portionable)!)} cocidos c/u</>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        Pesa {formatGrams(cookedWeight!)} cocida ·{" "}
+                        {Math.round(kcalPer100Cooked(templateCalories(portionable), cookedWeight!))}{" "}
+                        kcal por 100 g
+                      </>
+                    )}
                   </p>
                 </div>
                 <button
@@ -369,20 +416,87 @@ export default function AddEntryModal({
                 </button>
               </div>
 
-              <label className="flex flex-wrap items-center gap-2 text-sm font-medium text-neutral-700">
-                ¿Cuántas porciones comiste?
-                <DecimalInput
-                  min={PORTION_STEP}
-                  value={portions}
-                  onValueChange={setPortions}
-                  aria-label="Porciones consumidas"
-                  className="w-20 rounded-lg border border-neutral-300 px-2 py-1 text-sm"
-                  autoFocus
-                  required
-                />
-              </label>
-              {portions != null && !portionsValid && (
-                <p className="text-xs text-danger-600">Usa porciones enteras o medias (ej.: 1, 1,5, 2).</p>
+              {cookedWeight != null && hasServings && (
+                <div className="flex gap-1 rounded-full bg-neutral-100 p-1 text-xs font-semibold">
+                  {[
+                    { key: true, label: "Gramos cocidos" },
+                    { key: false, label: "Porciones" },
+                  ].map((opt) => (
+                    <button
+                      key={opt.label}
+                      type="button"
+                      onClick={() => setByWeight(opt.key)}
+                      className={`flex-1 rounded-full px-2 py-1.5 transition-colors ${
+                        byWeight === opt.key ? "bg-white shadow-sm text-brand-700" : "text-neutral-500"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {weighing ? (
+                <>
+                  <label className="flex flex-wrap items-center gap-2 text-sm font-medium text-neutral-700">
+                    ¿Cuántos gramos (ya cocidos) te serviste?
+                    <span className="flex items-center gap-1">
+                      <DecimalInput
+                        min={0.1}
+                        value={cookedGrams}
+                        onValueChange={setCookedGrams}
+                        aria-label="Gramos cocidos consumidos"
+                        className="w-24 rounded-lg border border-neutral-300 px-2 py-1 text-sm"
+                        autoFocus
+                        required
+                      />
+                      <span className="text-xs text-neutral-500">g</span>
+                    </span>
+                  </label>
+                  <p className="text-xs text-neutral-500">
+                    Toda la receta pesa {formatGrams(cookedWeight)} cocida. Pon tu plato en la
+                    balanza, márcala en cero y sírvete.
+                    {portionPreview && hasServings && (
+                      <>
+                        {" "}
+                        Eso equivale a ≈{" "}
+                        {formatPortions(
+                          Math.round(
+                            gramsToPortions(
+                              { servings: portionable.servings, cookedWeight },
+                              cookedGrams as number
+                            ) * 10
+                          ) / 10
+                        )}
+                        .
+                      </>
+                    )}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <label className="flex flex-wrap items-center gap-2 text-sm font-medium text-neutral-700">
+                    ¿Cuántas porciones comiste?
+                    <DecimalInput
+                      min={PORTION_STEP}
+                      value={portions}
+                      onValueChange={setPortions}
+                      aria-label="Porciones consumidas"
+                      className="w-20 rounded-lg border border-neutral-300 px-2 py-1 text-sm"
+                      autoFocus
+                      required
+                    />
+                  </label>
+                  {portions != null && !portionsValid && (
+                    <p className="text-xs text-danger-600">Usa porciones enteras o medias (ej.: 1, 1,5, 2).</p>
+                  )}
+                  {portionsValid && gramsPerServing(portionable) != null && (
+                    <p className="text-xs text-neutral-500">
+                      Sírvete ≈ {formatGrams(gramsPerServing(portionable)! * (portions as number))}{" "}
+                      ya cocidos.
+                    </p>
+                  )}
+                </>
               )}
 
               {portionPreview && (
@@ -406,7 +520,7 @@ export default function AddEntryModal({
                 {submitting
                   ? "Agregando..."
                   : portionsValid
-                    ? `Agregar ${formatPortions(portions as number)}`
+                    ? `Agregar ${weighing ? `${formatGrams(cookedGrams as number)} cocidos` : formatPortions(portions as number)}`
                     : "Agregar"}
               </button>
             </form>

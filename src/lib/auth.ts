@@ -45,10 +45,12 @@ async function sendEmail(
 
 function createAuth(env: CloudflareEnv) {
   const isDev = process.env.NODE_ENV !== "production";
-  const baseURL = isDev ? "http://localhost:3000" : env.BETTER_AUTH_URL;
+  // En dev se usa el puerto de `next dev` (PORT), por si el 3000 está ocupado.
+  const devPort = process.env.PORT || "3000";
+  const baseURL = isDev ? `http://localhost:${devPort}` : env.BETTER_AUTH_URL;
   const trustedOrigins = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
+    `http://localhost:${devPort}`,
+    `http://127.0.0.1:${devPort}`,
     env.BETTER_AUTH_URL,
   ].filter(Boolean) as string[];
 

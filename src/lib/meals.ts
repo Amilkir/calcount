@@ -12,6 +12,44 @@ export function isValidPortion(value: unknown): value is number {
   return isFiniteNumber(value) && value > 0 && Number.isInteger(value / PORTION_STEP);
 }
 
+/** Peso total cocido permitido (gramos). */
+export const MIN_COOKED_WEIGHT = 1;
+export const MAX_COOKED_WEIGHT = 50000;
+
+/** Gramos cocidos que se pueden cargar en un registro. */
+export function isValidCookedGrams(value: unknown): value is number {
+  return isFiniteNumber(value) && value > 0 && value <= MAX_COOKED_WEIGHT;
+}
+
+/** Gramos cocidos que pesa una porción, si la comida tiene peso cocido. */
+export function gramsPerServing(
+  template: Pick<MealTemplate, "servings" | "cookedWeight">
+): number | null {
+  return template.servings != null && template.cookedWeight != null
+    ? template.cookedWeight / template.servings
+    : null;
+}
+
+/**
+ * Porciones equivalentes a `grams` gramos cocidos de la comida. Si la comida no rinde
+ * porciones, cuenta la receta entera como 1 (el resultado es la fracción comida).
+ */
+export function gramsToPortions(
+  template: { servings: number | null; cookedWeight: number },
+  grams: number
+): number {
+  return (grams / template.cookedWeight) * (template.servings ?? 1);
+}
+
+/** Calorías por 100 g de la receta ya cocida. */
+export function kcalPer100Cooked(calories: number, cookedWeight: number): number {
+  return (calories / cookedWeight) * 100;
+}
+
+export function formatGrams(grams: number): string {
+  return `${Math.round(grams).toLocaleString("es")} g`;
+}
+
 export function formatPortions(portions: number): string {
   const n = portions.toLocaleString("es", { maximumFractionDigits: 1 });
   return `${n} ${portions === 1 ? "porción" : "porciones"}`;
@@ -60,13 +98,13 @@ export function templateTotals(
   );
 }
 
-/** Calorías y macros de `portions` porciones de una comida porcionable. */
+/** Calorías y macros de `portions` porciones (receta entera = `servings`, o 1 si no rinde porciones). */
 export function portionTotals(
-  template: MealTemplateWithItems & { servings: number },
+  template: Pick<MealTemplateWithItems, "items"> & { servings: number | null },
   portions: number
 ): MacroGrams & { calories: number } {
   const total = templateTotals(template.items);
-  const factor = portions / template.servings;
+  const factor = portions / (template.servings ?? 1);
   return {
     calories: total.calories * factor,
     protein: total.protein * factor,
@@ -84,6 +122,8 @@ export interface MealTemplateInput {
   icon: string;
   /** null = comida normal (no porcionable). */
   servings: number | null;
+  /** Peso total ya cocido, en gramos; null = no se pesó. */
+  cookedWeight: number | null;
   items: { foodId: string; quantity: number }[];
 }
 
@@ -123,12 +163,26 @@ export function parseMealTemplateInput(
     };
   }
 
+  const cookedWeight = input.cookedWeight ?? null;
+  if (
+    cookedWeight !== null &&
+    (!isFiniteNumber(cookedWeight) ||
+      cookedWeight < MIN_COOKED_WEIGHT ||
+      cookedWeight > MAX_COOKED_WEIGHT)
+  ) {
+    return {
+      ok: false,
+      error: `El peso cocido debe estar entre ${MIN_COOKED_WEIGHT} y ${MAX_COOKED_WEIGHT.toLocaleString("es")} g.`,
+    };
+  }
+
   return {
     ok: true,
     data: {
       name: input.name.trim(),
       icon: isNonEmptyString(input.icon) ? input.icon.trim() : DEFAULT_MEAL_ICON,
       servings: servings as number | null,
+      cookedWeight: cookedWeight as number | null,
       items,
     },
   };
