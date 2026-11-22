@@ -236,7 +236,13 @@ export default function Dashboard({
         : payload.kind === "meal"
           ? { ...base, mealTemplateId: payload.mealTemplateId, items: payload.items }
           : payload.kind === "portion"
-            ? { ...base, mealTemplateId: payload.mealTemplateId, portions: payload.portions }
+            ? {
+                ...base,
+                mealTemplateId: payload.mealTemplateId,
+                ...("cookedGrams" in payload
+                  ? { cookedGrams: payload.cookedGrams }
+                  : { portions: payload.portions }),
+              }
             : payload.kind === "batch"
             ? { ...base, foods: payload.foods }
             : payload.kind === "custom"

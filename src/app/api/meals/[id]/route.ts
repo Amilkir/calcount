@@ -21,7 +21,7 @@ export async function PUT(request: NextRequest, context: Context) {
   if (!parsed.ok) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
-  const { name, icon, servings, items } = parsed.data;
+  const { name, icon, servings, cookedWeight, items } = parsed.data;
 
   const foodsError = await checkMealFoods(auth.user.id, items);
   if (foodsError) return foodsError;
@@ -41,6 +41,7 @@ export async function PUT(request: NextRequest, context: Context) {
       name,
       icon,
       servings,
+      cookedWeight,
       items: {
         deleteMany: {},
         create: items.map((item, position) => ({ ...item, position })),

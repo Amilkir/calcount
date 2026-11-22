@@ -335,6 +335,8 @@ model MealTemplate {
   icon      String
   // Comida porcionable: cuántas porciones rinde la receta. null = se carga alimento por alimento.
   servings  Int?
+  // Peso total de la receta ya cocida, en gramos (los ingredientes van en crudo). null = no se pesó.
+  cookedWeight Float?
   createdAt DateTime           @default(now())
   updatedAt DateTime           @updatedAt
   items     MealTemplateItem[]
@@ -367,6 +369,7 @@ model FoodEntry {
   calories        Float
   // Porciones de una comida porcionable (sin foodId; el nombre va en freeDescription).
   // Se guardan los macros e ícono de lo comido para que editar la receta no cambie el historial.
+  // Si se cargó por peso cocido, `quantity` guarda los gramos cocidos y `portions` su equivalente.
   portions        Float?
   icon            String?
   protein         Float?

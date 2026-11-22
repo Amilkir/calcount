@@ -7,11 +7,16 @@ import { useMemo, useState } from "react";
 import type { Food } from "@/lib/types";
 import {
   DEFAULT_MEAL_ICON,
+  MAX_COOKED_WEIGHT,
   MAX_MEAL_ITEMS,
   MAX_SERVINGS,
+  MIN_COOKED_WEIGHT,
   MIN_SERVINGS,
   entryCalories,
+  formatGrams,
   formatQuantity,
+  gramsPerServing,
+  kcalPer100Cooked,
   templateCalories,
   type MealTemplateWithItems,
 } from "@/lib/meals";
@@ -32,6 +37,10 @@ interface MealForm {
   portionable: boolean;
   /** Porciones que rinde la receta; null = campo vacío. */
   servings: number | null;
+  /** Peso total ya cocido, en gramos; null = no se pesó (es opcional). */
+  cookedWeight: number | null;
+  /** Se pesa ya cocida para cargar lo comido en gramos cocidos. */
+  weighed: boolean;
   items: ItemRow[];
 }
 
@@ -41,11 +50,16 @@ const EMPTY_FORM: MealForm = {
   icon: DEFAULT_MEAL_ICON,
   portionable: false,
   servings: null,
+  cookedWeight: null,
+  weighed: false,
   items: [{ foodId: "", quantity: null }],
 };
 
 const validServings = (n: number | null) =>
   n != null && Number.isInteger(n) && n >= MIN_SERVINGS && n <= MAX_SERVINGS;
+
+const validCookedWeight = (n: number | null) =>
+  n != null && n >= MIN_COOKED_WEIGHT && n <= MAX_COOKED_WEIGHT;
 
 export default function MealsManager({
   foods,
@@ -66,7 +80,8 @@ export default function MealsManager({
     (!form.name.trim() ||
       form.items.length === 0 ||
       form.items.some((i) => i.foodId === "" || i.quantity == null || i.quantity <= 0) ||
-      (form.portionable && !validServings(form.servings)));
+      (form.portionable && !validServings(form.servings)) ||
+      (form.weighed && !validCookedWeight(form.cookedWeight)));
 
   const formCalories = (form?.items ?? []).reduce((sum, item) => {
     const food = foodsById.get(item.foodId);
@@ -87,6 +102,8 @@ export default function MealsManager({
       icon: meal.icon,
       portionable: meal.servings != null,
       servings: meal.servings,
+      cookedWeight: meal.cookedWeight,
+      weighed: meal.cookedWeight != null,
       items: meal.items.map((i) => ({ foodId: i.foodId, quantity: i.quantity })),
     });
   }
@@ -99,7 +116,9 @@ export default function MealsManager({
       setError(
         form.portionable && !validServings(form.servings)
           ? `Indica cuántas porciones rinde (un número entero entre ${MIN_SERVINGS} y ${MAX_SERVINGS}).`
-          : "Completa el nombre y elige un alimento y una cantidad en cada fila."
+          : form.weighed && !validCookedWeight(form.cookedWeight)
+            ? `Indica el peso total ya cocido. Debe estar debe estar entre ${MIN_COOKED_WEIGHT} y ${MAX_COOKED_WEIGHT.toLocaleString("es")} g.`
+            : "Completa el nombre y elige un alimento y una cantidad en cada fila."
       );
       return;
     }
@@ -112,6 +131,7 @@ export default function MealsManager({
         name: form.name,
         icon: form.icon,
         servings: form.portionable ? form.servings : null,
+        cookedWeight: form.weighed ? form.cookedWeight : null,
         items: form.items,
       }),
     }).catch(() => null);
@@ -285,6 +305,65 @@ export default function MealsManager({
             )}
           </div>
 
+          <div className="flex flex-col gap-2 rounded-lg border border-neutral-100 bg-neutral-50 p-3">
+            <label className="flex items-center gap-2 text-sm font-medium text-neutral-700">
+              <input
+                type="checkbox"
+                checked={form.weighed}
+                onChange={(e) => setForm({ ...form, weighed: e.target.checked })}
+                className="h-4 w-4 shrink-0 accent-brand-600"
+              />
+              ¿La pesas ya cocida?
+            </label>
+            <p className="text-xs text-neutral-500">
+              Para recetas que cocinas y luego te sirves a ojo (pasticho, guisos, arroz...). Al
+              cargarla escribes cuántos gramos cocidos te serviste y se calcula todo.
+            </p>
+            {form.weighed && (
+              <div className="flex flex-col gap-1">
+                <label className="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
+                  Peso total ya cocido
+                  <DecimalInput
+                    min={MIN_COOKED_WEIGHT}
+                    max={MAX_COOKED_WEIGHT}
+                    value={form.cookedWeight ?? null}
+                    onValueChange={(next) => setForm({ ...form, cookedWeight: next })}
+                    aria-label="Peso total ya cocido en gramos"
+                    className={`${INPUT_CLASS} w-24`}
+                    required
+                  />
+                  <span className="text-xs text-neutral-500">g</span>
+                </label>
+                <p className="text-xs text-neutral-500">
+                  Los alimentos de arriba van en crudo. Al cocinar, el peso cambia (pierde o gana
+                  agua), así que pesa todo ya cocido: pesa la fuente con la comida y réstale lo que
+                  pesa la fuente vacía.
+                </p>
+                {validCookedWeight(form.cookedWeight) && (
+                  <p className="text-sm text-neutral-700">
+                    {formCalories > 0 && (
+                      <>
+                        <span className="font-semibold text-neutral-900">
+                          {Math.round(kcalPer100Cooked(formCalories, form.cookedWeight!))} kcal
+                        </span>{" "}
+                        por 100 g cocidos
+                      </>
+                    )}
+                    {form.portionable && validServings(form.servings) && (
+                      <>
+                        {formCalories > 0 ? " · " : ""}cada porción pesa{" "}
+                        <span className="font-semibold text-neutral-900">
+                          {formatGrams(form.cookedWeight! / form.servings!)}
+                        </span>{" "}
+                        cocida
+                      </>
+                    )}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
           <p className="text-sm text-neutral-600">
             Total: <span className="font-semibold text-neutral-900">{Math.round(formCalories)} kcal</span>
             {form.portionable && validServings(form.servings) && (
@@ -331,6 +410,15 @@ export default function MealsManager({
                 <p className="self-start rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-800">
                   Rinde {meal.servings} porciones ·{" "}
                   {Math.round(templateCalories(meal) / meal.servings)} kcal por porción
+                  {gramsPerServing(meal) != null && (
+                    <> · {formatGrams(gramsPerServing(meal)!)} cocidos c/u</>
+                  )}
+                </p>
+              )}
+              {meal.servings == null && meal.cookedWeight != null && (
+                <p className="self-start rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-800">
+                  Pesa {formatGrams(meal.cookedWeight)} cocida ·{" "}
+                  {Math.round(kcalPer100Cooked(templateCalories(meal), meal.cookedWeight))} kcal por 100 g
                 </p>
               )}
               <ul className="flex flex-col divide-y divide-neutral-100 text-sm">

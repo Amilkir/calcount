@@ -4,7 +4,14 @@ import DecimalInput from "./DecimalInput";
 import { CheckIcon, CloseIcon, PencilIcon } from "./icons";
 import { useState } from "react";
 import type { FoodEntryWithFood } from "@/lib/types";
-import { PORTION_STEP, entryCalories, formatPortions, isValidPortion } from "@/lib/meals";
+import {
+  PORTION_STEP,
+  entryCalories,
+  formatGrams,
+  formatPortions,
+  isValidCookedGrams,
+  isValidPortion,
+} from "@/lib/meals";
 import {
   formatFreeDescription,
   isCustomEntry,
@@ -44,6 +51,8 @@ function EntryRow({
   const isFood = entry.food != null;
   // Porciones de una comida porcionable: un solo registro con el nombre de la comida.
   const isPortion = entry.portions != null;
+  // Porcionable cargada por peso cocido: se edita en gramos (quantity).
+  const isCooked = isPortion && entry.quantity != null;
   // Personalizado: macros escritos a mano. Al editar solo cambian las calorías, los macros se quedan igual.
   const isCustom = isCustomEntry(entry);
   const { description: freeDesc, macro: initialMacro } = parseFreeDescription(entry.freeDescription);
@@ -51,19 +60,32 @@ function EntryRow({
   const icon = entry.food ? entry.food.icon : isPortion ? (entry.icon ?? "🍽️") : "📝";
 
   // Alimento: se edita la cantidad. Porcionable: las porciones. Libre: las calorías y el macro.
-  const initial = isFood ? entry.quantity : isPortion ? entry.portions : Math.round(entry.calories);
+  const initial =
+    isFood || isCooked ? entry.quantity : isPortion ? entry.portions : Math.round(entry.calories);
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState<number | null>(initial);
   const [editMacro, setEditMacro] = useState<PredominantMacro>(initialMacro);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(false);
 
-  const unit = isFood ? (entry.food!.servingUnit === "UNIT" ? "u" : "g") : isPortion ? "porc." : "kcal";
-  const valid = isPortion ? isValidPortion(value) : value != null && value > 0;
+  const unit = isFood
+    ? entry.food!.servingUnit === "UNIT" ? "u" : "g"
+    : isCooked
+      ? "g"
+      : isPortion
+        ? "porc."
+        : "kcal";
+  const valid = isCooked
+    ? isValidCookedGrams(value)
+    : isPortion
+      ? isValidPortion(value)
+      : value != null && value > 0;
   const previewKcal =
     isFood && valid
       ? entryCalories(entry.food!, value!)
-      : isPortion && valid
+      : isCooked && valid
+        ? (entry.calories * value!) / entry.quantity!
+        : isPortion && valid
         ? (entry.calories * value!) / entry.portions!
         : value ?? 0;
 
@@ -76,7 +98,7 @@ function EntryRow({
     }
     setSaving(true);
     setError(false);
-    const change: EntryUpdate = isFood
+    const change: EntryUpdate = isFood || isCooked
       ? { quantity: value! }
       : isPortion
         ? { portions: value! }
@@ -117,7 +139,7 @@ function EntryRow({
             )}
             <span className="flex items-center gap-1">
               <DecimalInput
-                min={isPortion ? PORTION_STEP : 0.1}
+                min={isPortion && !isCooked ? PORTION_STEP : 0.1}
                 value={value}
                 onValueChange={setValue}
                 onKeyDown={(e) => {
@@ -130,6 +152,8 @@ function EntryRow({
                 aria-label={
                   entry.food
                     ? `Cantidad de ${name}`
+                    : isCooked
+                      ? `Gramos cocidos de ${name}`
                     : isPortion
                       ? `Porciones de ${name}`
                       : `Calorías de ${name}`
@@ -182,7 +206,11 @@ function EntryRow({
         <span className="truncate">
           {name}
           {isPortion && (
-            <span className="text-neutral-500"> · {formatPortions(entry.portions!)}</span>
+            <span className="text-neutral-500">
+              {" "}
+              ·{" "}
+              {isCooked ? `${formatGrams(entry.quantity!)} cocidos` : formatPortions(entry.portions!)}
+            </span>
           )}
           {isCustom && (
             <span className="text-neutral-500">
